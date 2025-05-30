@@ -1,0 +1,26 @@
+{
+  "targets": [
+    {
+      "name": "百度首页",
+      "url": "https://www.baidu.com",
+      "deviceType": "desktop",
+      "groupId": "请替换为实际的分组ID",
+      "tagIds": ["请替换为实际的标签ID1", "请替换为实际的标签ID2"]
+    },
+    {
+      "name": "谷歌首页",
+      "url": "https://www.google.com",
+      "deviceType": "desktop"
+    },
+    {
+      "name": "GitHub首页",
+      "url": "https://github.com",
+      "deviceType": "desktop"
+    },
+    {
+      "name": "淘宝移动端",
+      "url": "https://m.taobao.com",
+      "deviceType": "mobile"
+    }
+  ]
+} 

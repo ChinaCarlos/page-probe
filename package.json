@@ -1,0 +1,34 @@
+{
+  "name": "page-probe",
+  "version": "1.0.0",
+  "description": "实时监控落地页核心性能指标（LCP/FID/CLS）并自动检测白屏异常的系统",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "install:all": "pnpm install",
+    "dev": "concurrently \"pnpm --filter @page-probe/server dev\" \"pnpm --filter @page-probe/web dev\"",
+    "build": "pnpm --filter @page-probe/web build && pnpm --filter @page-probe/server build",
+    "start": "pnpm --filter @page-probe/server start",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "clear-data": "node scripts/clear-data.js",
+    "clear-data:force": "node scripts/clear-data.js --force",
+    "clear-data:sh": "bash scripts/clear-data.sh",
+    "clear-data:sh:force": "bash scripts/clear-data.sh --force",
+    "migrate-tag-ids": "node scripts/migrate-tag-ids.js",
+    "migrate-tag-ids:force": "node scripts/migrate-tag-ids.js --force"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
+ 

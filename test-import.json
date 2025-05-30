@@ -1,0 +1,14 @@
+{
+  "targets": [
+    {
+      "name": "测试网站1",
+      "url": "https://www.baidu.com",
+      "deviceType": "desktop"
+    },
+    {
+      "name": "测试网站2", 
+      "url": "https://www.google.com",
+      "deviceType": "desktop"
+    }
+  ]
+} 
