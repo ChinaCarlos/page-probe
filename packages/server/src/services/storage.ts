@@ -12,6 +12,7 @@ import {
   MonitorTask,
   Tag,
 } from "../models";
+import { getDefaultBlankScreenConfig } from "../constants/blankScreen";
 
 const DATA_DIR = path.join(__dirname, "../../data");
 
@@ -423,43 +424,10 @@ class Storage {
       );
       return JSON.parse(configData);
     } catch (error) {
-      // 返回默认配置
+      // 返回默认配置（使用常量）
       const defaultConfig: BlankScreenConfig = {
         id: uuidv4(),
-        enableDOMStructureCheck: true,
-        enableContentCheck: true,
-        enableTextMatchCheck: true,
-        enableHTTPStatusCheck: true,
-        enableTimeoutCheck: true,
-        enableAICheck: false, // AI检测默认关闭（预留功能）
-        domElementThreshold: 3,
-        heightRatioThreshold: 0.15,
-        textLengthThreshold: 10,
-        domLoadTimeout: 8000,
-        pageLoadTimeout: 10000,
-        aiConfidenceThreshold: 0.8, // AI检测置信度阈值
-        aiModelVersion: "v1.0", // AI模型版本
-        errorTextKeywords: [
-          // 基础404关键词
-          "404",
-          "not found",
-          "page not found",
-          "页面不存在",
-          "页面未找到",
-          "找不到页面",
-          "页面丢失",
-          "无法找到",
-          "访问的页面不存在",
-          "file not found",
-          "document not found",
-          // 服务器错误关键词
-          "服务器错误",
-          "internal server error",
-          "网站维护中",
-          "暂时无法访问",
-          "系统错误",
-        ],
-        errorStatusCodes: [400, 401, 403, 404, 500, 502, 503, 504],
+        ...getDefaultBlankScreenConfig(),
         createdAt: Date.now(),
       };
       await this.saveBlankScreenConfig(defaultConfig);

@@ -1,78 +1,95 @@
+import React, { useEffect, useState } from "react";
 import {
-  InfoCircleOutlined,
-  PlusOutlined,
-  QuestionCircleOutlined,
-  SaveOutlined,
-} from "@ant-design/icons";
-import {
-  Button,
   Card,
-  Col,
-  Divider,
   Form,
-  Input,
-  InputNumber,
-  Row,
-  Space,
   Switch,
-  Tag,
-  Tooltip,
-  Typography,
+  InputNumber,
+  Button,
   message,
+  Typography,
+  Divider,
+  Row,
+  Col,
+  Tooltip,
+  Tag,
+  Select,
+  Space,
+  Input,
 } from "antd";
-import React, { useState, useEffect } from "react";
-import { BlankScreenConfig } from "../../types";
+import {
+  SaveOutlined,
+  QuestionCircleOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import { DEFAULT_BLANK_SCREEN_CONFIG } from "../../constants/blankScreen";
 
 const { Title, Text } = Typography;
 
 const Settings: React.FC = () => {
-  const [form] = Form.useForm<BlankScreenConfig>();
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [config, setConfig] = useState<BlankScreenConfig | null>(null);
+  const [formValues, setFormValues] = useState<any>(null);
   const [newTextKeyword, setNewTextKeyword] = useState("");
   const [newStatusCode, setNewStatusCode] = useState<number | null>(null);
 
-  // 监听表单值变化，用于条件渲染
-  const formValues = Form.useWatch([], form);
+  // 监听表单值变化
+  const handleFormChange = () => {
+    setFormValues(form.getFieldsValue());
+  };
 
-  // 获取配置
-  const fetchConfig = async () => {
+  // 加载配置
+  const loadConfig = async () => {
     try {
+      setLoading(true);
       const response = await fetch("/api/blank-screen-config");
-      const result = await response.json();
-      if (result.success) {
-        setConfig(result.data);
-        form.setFieldsValue(result.data);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        const config = data.data;
+        form.setFieldsValue(config);
+        setFormValues(config);
       } else {
-        message.error("获取配置失败");
+        message.error("加载配置失败");
+        // 使用默认配置
+        const defaultConfig = { ...DEFAULT_BLANK_SCREEN_CONFIG };
+        form.setFieldsValue(defaultConfig);
+        setFormValues(defaultConfig);
       }
     } catch (error) {
-      console.error("获取配置失败:", error);
-      message.error("获取配置失败");
+      console.error("加载配置失败:", error);
+      message.error("加载配置失败，使用默认配置");
+      // 使用默认配置
+      const defaultConfig = { ...DEFAULT_BLANK_SCREEN_CONFIG };
+      form.setFieldsValue(defaultConfig);
+      setFormValues(defaultConfig);
+    } finally {
+      setLoading(false);
     }
   };
 
   // 保存配置
-  const handleSave = async (values: BlankScreenConfig) => {
-    setLoading(true);
+  const handleSave = async (values: any) => {
     try {
+      setLoading(true);
       const response = await fetch("/api/blank-screen-config", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...config,
-          ...values,
-        }),
+        body: JSON.stringify(values),
       });
 
-      const result = await response.json();
-      if (result.success) {
+      const data = await response.json();
+      if (data.success) {
         message.success("配置保存成功");
-        await fetchConfig(); // 重新获取配置
       } else {
-        message.error(result.error || "保存配置失败");
+        message.error(data.error || "保存配置失败");
       }
     } catch (error) {
       console.error("保存配置失败:", error);
@@ -80,6 +97,13 @@ const Settings: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 重置为默认配置
+  const handleResetToDefault = () => {
+    form.setFieldsValue(DEFAULT_BLANK_SCREEN_CONFIG);
+    setFormValues(DEFAULT_BLANK_SCREEN_CONFIG);
+    message.success("已重置为默认配置");
   };
 
   // 添加错误文案关键词
@@ -136,7 +160,7 @@ const Settings: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchConfig();
+    loadConfig();
   }, []);
 
   return (
@@ -145,14 +169,23 @@ const Settings: React.FC = () => {
         <Title level={2} className="m-0 flex items-center gap-2">
           <QuestionCircleOutlined /> 系统设置
         </Title>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={() => form.submit()}
-          loading={loading}
-        >
-          保存配置
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={handleResetToDefault}
+            disabled={loading}
+          >
+            重置默认
+          </Button>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={() => form.submit()}
+            loading={loading}
+          >
+            保存配置
+          </Button>
+        </div>
       </div>
 
       <Card className="mt-5">
@@ -160,31 +193,19 @@ const Settings: React.FC = () => {
           form={form}
           layout="vertical"
           onFinish={handleSave}
-          initialValues={{
-            enableDOMStructureCheck: true,
-            enableContentCheck: true,
-            enableTextMatchCheck: true,
-            enableHTTPStatusCheck: true,
-            enableTimeoutCheck: true,
-            enableAICheck: false,
-            enablePixelCheck: false,
-            domElementThreshold: 3,
-            heightRatioThreshold: 0.15,
-            textLengthThreshold: 10,
-            domLoadTimeout: 8000,
-            pageLoadTimeout: 10000,
-            aiConfidenceThreshold: 0.8,
-            aiModelVersion: "v1.0",
-            pixelSimilarityThreshold: 0.85,
-            pixelColorThreshold: 30,
-            pixelWhiteRatio: 0.9,
-            errorTextKeywords: [],
-            errorStatusCodes: [],
-          }}
+          onValuesChange={handleFormChange}
+          initialValues={DEFAULT_BLANK_SCREEN_CONFIG}
         >
           <Title level={4}>白屏检测配置</Title>
           <Text type="secondary">
-            配置白屏异常检测规则和参数阈值。系统提供6种检测类型，您可以根据具体业务需求调整检测策略。
+            配置白屏异常检测规则和参数阈值。系统提供7种检测类型，您可以根据具体业务需求调整检测策略。
+          </Text>
+
+          <Divider />
+
+          <Title level={4}>检测算法开关</Title>
+          <Text type="secondary" className="block mb-4">
+            启用或禁用各种检测算法。建议根据监控页面的特点选择合适的检测方式。
           </Text>
 
           <Row gutter={[16, 16]}>
@@ -195,7 +216,7 @@ const Settings: React.FC = () => {
                 label={
                   <span>
                     DOM结构检测
-                    <Tooltip title="检测页面DOM元素数量和页面高度，判断页面是否正常渲染">
+                    <Tooltip title="检测页面DOM元素数量和高度比例">
                       <QuestionCircleOutlined className="ml-2 text-gray-400" />
                     </Tooltip>
                   </span>
@@ -204,7 +225,7 @@ const Settings: React.FC = () => {
                 <Switch checkedChildren="开启" unCheckedChildren="关闭" />
               </Form.Item>
               <Text type="secondary" className="text-xs block mb-4">
-                检测页面中可见DOM元素数量和页面高度比例
+                检测页面可见元素数量和高度比例，判断页面是否为空白
               </Text>
             </Col>
 
@@ -215,7 +236,7 @@ const Settings: React.FC = () => {
                 label={
                   <span>
                     页面内容检测
-                    <Tooltip title="检测页面文本、图片、背景等有效内容">
+                    <Tooltip title="检测页面文本、图片、背景等内容">
                       <QuestionCircleOutlined className="ml-2 text-gray-400" />
                     </Tooltip>
                   </span>
@@ -224,7 +245,7 @@ const Settings: React.FC = () => {
                 <Switch checkedChildren="开启" unCheckedChildren="关闭" />
               </Form.Item>
               <Text type="secondary" className="text-xs block mb-4">
-                检测页面是否有有效的文本、图片、背景等内容
+                分析页面的文本、图片、背景等内容，检测是否存在有效内容
               </Text>
             </Col>
 
@@ -235,7 +256,7 @@ const Settings: React.FC = () => {
                 label={
                   <span>
                     文案匹配检测
-                    <Tooltip title="检测页面是否包含错误文案（如404、服务器错误等）">
+                    <Tooltip title="检测页面是否包含错误文案关键词">
                       <QuestionCircleOutlined className="ml-2 text-gray-400" />
                     </Tooltip>
                   </span>
@@ -244,7 +265,7 @@ const Settings: React.FC = () => {
                 <Switch checkedChildren="开启" unCheckedChildren="关闭" />
               </Form.Item>
               <Text type="secondary" className="text-xs block mb-4">
-                检测页面是否包含错误文案（404、Not Found等）
+                检测页面是否包含404、错误提示等异常文案
               </Text>
             </Col>
 
@@ -255,7 +276,7 @@ const Settings: React.FC = () => {
                 label={
                   <span>
                     HTTP状态检测
-                    <Tooltip title="检测HTTP响应状态码，判断页面是否正常加载">
+                    <Tooltip title="检测HTTP响应状态码">
                       <QuestionCircleOutlined className="ml-2 text-gray-400" />
                     </Tooltip>
                   </span>
@@ -264,7 +285,7 @@ const Settings: React.FC = () => {
                 <Switch checkedChildren="开启" unCheckedChildren="关闭" />
               </Form.Item>
               <Text type="secondary" className="text-xs block mb-4">
-                检测HTTP响应状态码是否为错误状态
+                检测HTTP响应状态码，识别4xx、5xx等错误状态
               </Text>
             </Col>
 
@@ -387,7 +408,10 @@ const Settings: React.FC = () => {
                       formatter={(value) =>
                         `${((value || 0) * 100).toFixed(0)}`
                       }
-                      parser={(value) => Number.parseFloat(value || "0") / 100}
+                      parser={(value) => {
+                        const num = Number.parseFloat(value || "0") / 100;
+                        return num as any;
+                      }}
                     />
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
@@ -415,12 +439,12 @@ const Settings: React.FC = () => {
                   />
                 </Form.Item>
                 <Text type="secondary" className="text-xs block mb-4">
-                  当页面文本内容少于此字符数时判断为无有效内容
+                  当页面有效文本少于此字符数时判断为异常
                 </Text>
               </Col>
             )}
 
-            {/* 加载超时检测参数 - 只有当超时检测开启时才显示 */}
+            {/* 超时检测参数 - 只有当超时检测开启时才显示 */}
             {formValues?.enableTimeoutCheck && (
               <>
                 <Col span={12}>
@@ -475,13 +499,15 @@ const Settings: React.FC = () => {
                     name="aiConfidenceThreshold"
                     label={
                       <span>
-                        AI置信度阈值
+                        AI检测置信度阈值
                         <Tag color="orange" className="ml-2">
                           预留
                         </Tag>
                       </span>
                     }
-                    rules={[{ required: true, message: "请输入AI置信度阈值" }]}
+                    rules={[
+                      { required: true, message: "请输入AI检测置信度阈值" },
+                    ]}
                   >
                     <InputNumber
                       min={0.1}
@@ -492,13 +518,16 @@ const Settings: React.FC = () => {
                       formatter={(value) =>
                         `${((value || 0) * 100).toFixed(0)}%`
                       }
-                      parser={(value) =>
-                        Number.parseFloat(value?.replace("%", "") || "0") / 100
-                      }
+                      parser={(value) => {
+                        const num =
+                          Number.parseFloat(value?.replace("%", "") || "0") /
+                          100;
+                        return num as any;
+                      }}
                     />
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
-                    AI模型检测异常的置信度阈值，超过此值判断为异常
+                    AI模型检测置信度低于此值时判断为异常
                   </Text>
                 </Col>
 
@@ -515,20 +544,19 @@ const Settings: React.FC = () => {
                     }
                     rules={[{ required: true, message: "请选择AI模型版本" }]}
                   >
-                    <Input
-                      className="w-full"
-                      disabled={true}
-                      placeholder="v1.0"
-                    />
+                    <Select disabled={true} className="w-full">
+                      <Select.Option value="v1.0">v1.0 (基础版)</Select.Option>
+                      <Select.Option value="v2.0">v2.0 (增强版)</Select.Option>
+                    </Select>
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
-                    使用的AI模型版本，不同版本检测精度和性能可能不同
+                    选择用于异常检测的AI模型版本
                   </Text>
                 </Col>
               </>
             )}
 
-            {/* 像素算法检测参数 - 预留功能，暂时禁用 */}
+            {/* 像素检测参数 - 预留功能，暂时禁用 */}
             {formValues?.enablePixelCheck && (
               <>
                 <Col span={12}>
@@ -555,13 +583,16 @@ const Settings: React.FC = () => {
                       formatter={(value) =>
                         `${((value || 0) * 100).toFixed(0)}%`
                       }
-                      parser={(value) =>
-                        Number.parseFloat(value?.replace("%", "") || "0") / 100
-                      }
+                      parser={(value) => {
+                        const num =
+                          Number.parseFloat(value?.replace("%", "") || "0") /
+                          100;
+                        return num as any;
+                      }}
                     />
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
-                    页面像素相似度低于此阈值时判断为异常
+                    像素相似度低于此值时判断为异常
                   </Text>
                 </Col>
 
@@ -583,11 +614,11 @@ const Settings: React.FC = () => {
                       max={255}
                       className="w-full"
                       disabled={true}
-                      addonAfter="RGB值"
+                      addonAfter="RGB差值"
                     />
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
-                    RGB颜色差异超过此值时判断为颜色异常
+                    RGB颜色差异超过此值时判断为异常
                   </Text>
                 </Col>
 
@@ -615,9 +646,12 @@ const Settings: React.FC = () => {
                       formatter={(value) =>
                         `${((value || 0) * 100).toFixed(0)}%`
                       }
-                      parser={(value) =>
-                        Number.parseFloat(value?.replace("%", "") || "0") / 100
-                      }
+                      parser={(value) => {
+                        const num =
+                          Number.parseFloat(value?.replace("%", "") || "0") /
+                          100;
+                        return num as any;
+                      }}
                     />
                   </Form.Item>
                   <Text type="secondary" className="text-xs block mb-4">
@@ -633,132 +667,48 @@ const Settings: React.FC = () => {
           {/* 错误文案关键词配置 - 只有当文案匹配检测开启时才显示 */}
           {formValues?.enableTextMatchCheck && (
             <>
-              <Title level={4}>错误文案关键词</Title>
-              <Text type="secondary" className="mb-4 block">
-                系统已内置常用错误文案关键词（404、not
-                found、页面不存在、服务器错误等）。
-                您可以添加额外的关键词来扩展检测范围。
+              <Title level={4}>错误文案关键词配置</Title>
+              <Text type="secondary" className="block mb-4">
+                配置用于检测异常页面的关键词。系统已预置常见的错误关键词，您可以根据需要添加自定义关键词。
               </Text>
-              <Form.Item label="添加错误文案关键词">
-                <Space.Compact className="w-full">
-                  <Input
-                    placeholder="输入错误文案关键词"
-                    value={newTextKeyword}
-                    onChange={(e) => setNewTextKeyword(e.target.value)}
-                    onPressEnter={handleAddTextKeyword}
-                  />
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddTextKeyword}
-                  >
-                    添加
-                  </Button>
-                </Space.Compact>
-              </Form.Item>
 
-              <Form.Item name="errorTextKeywords" label="当前错误文案关键词">
-                <div className="min-h-[50px] border border-gray-300 rounded-lg p-2">
-                  {form
-                    .getFieldValue("errorTextKeywords")
-                    ?.map((keyword: string) => (
-                      <Tag
-                        key={keyword}
-                        closable
-                        onClose={() => handleRemoveTextKeyword(keyword)}
-                        className="m-1"
-                        color="orange"
-                      >
-                        {keyword}
-                      </Tag>
-                    ))}
-                  {(!form.getFieldValue("errorTextKeywords") ||
-                    form.getFieldValue("errorTextKeywords").length === 0) && (
-                    <Text type="secondary">使用系统内置的错误文案关键词</Text>
-                  )}
-                </div>
+              <Form.Item
+                name="errorTextKeywords"
+                label="错误文案关键词"
+                extra="输入关键词后按回车添加，支持中英文。系统已预置常见的404、服务器错误等关键词。"
+              >
+                <Select
+                  mode="tags"
+                  style={{ width: "100%" }}
+                  placeholder="输入关键词后按回车添加"
+                  tokenSeparators={[","]}
+                />
               </Form.Item>
-
-              <Divider />
             </>
           )}
 
           {/* 错误状态码配置 - 只有当HTTP状态检测开启时才显示 */}
           {formValues?.enableHTTPStatusCheck && (
             <>
-              <Title level={4}>错误状态码</Title>
-              <Text type="secondary" className="mb-4 block">
-                系统已内置常用HTTP错误状态码（400, 401, 403, 404, 500, 502, 503,
-                504）。 您可以添加额外的状态码来扩展检测范围。
+              <Title level={4}>HTTP错误状态码配置</Title>
+              <Text type="secondary" className="block mb-4">
+                配置需要检测的HTTP错误状态码。系统已预置标准的4xx、5xx错误状态码。
               </Text>
-              <Form.Item label="添加错误状态码">
-                <Space.Compact className="w-full">
-                  <InputNumber
-                    placeholder="输入HTTP状态码(如: 403, 500)"
-                    value={newStatusCode}
-                    onChange={(value) => setNewStatusCode(value)}
-                    onPressEnter={handleAddStatusCode}
-                    min={100}
-                    max={999}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddStatusCode}
-                  >
-                    添加
-                  </Button>
-                </Space.Compact>
-              </Form.Item>
 
-              <Form.Item name="errorStatusCodes" label="当前错误状态码">
-                <div className="min-h-[50px] border border-gray-300 rounded-lg p-2">
-                  {form
-                    .getFieldValue("errorStatusCodes")
-                    ?.map((code: number) => (
-                      <Tag
-                        key={code}
-                        closable
-                        onClose={() => handleRemoveStatusCode(code)}
-                        className="m-1"
-                        color="red"
-                      >
-                        {code}
-                      </Tag>
-                    ))}
-                  {(!form.getFieldValue("errorStatusCodes") ||
-                    form.getFieldValue("errorStatusCodes").length === 0) && (
-                    <Text type="secondary">使用系统内置的错误状态码</Text>
-                  )}
-                </div>
+              <Form.Item
+                name="errorStatusCodes"
+                label="错误状态码"
+                extra="输入状态码后按回车添加，如：404、500等。系统已预置常见的错误状态码。"
+              >
+                <Select
+                  mode="tags"
+                  style={{ width: "100%" }}
+                  placeholder="输入状态码后按回车添加"
+                  tokenSeparators={[","]}
+                />
               </Form.Item>
-
-              <Divider />
             </>
           )}
-
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                size="large"
-              >
-                保存配置
-              </Button>
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  fetchConfig();
-                }}
-                size="large"
-              >
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
         </Form>
       </Card>
     </div>

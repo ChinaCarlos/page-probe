@@ -216,13 +216,14 @@ export interface TaskStats {
 // 白屏检测配置
 export interface BlankScreenConfig {
   id?: string;
-  // 检测规则开关 - 6种主要检测类型
+  // 检测规则开关 - 7种主要检测类型
   enableDOMStructureCheck: boolean; // DOM结构检测（元素数量、页面高度）
   enableContentCheck: boolean; // 页面内容检测（文本、图片、背景等）
   enableTextMatchCheck: boolean; // 文案匹配检测（404文案、自定义异常文案）
   enableHTTPStatusCheck: boolean; // HTTP状态检测（标准错误码、自定义状态码）
   enableTimeoutCheck: boolean; // 加载超时检测
   enableAICheck: boolean; // AI智能检测（预留功能）
+  enablePixelCheck?: boolean; // 像素算法检测（预留功能）
 
   // DOM结构检测参数
   domElementThreshold: number; // DOM元素数量阈值，默认3
@@ -238,6 +239,11 @@ export interface BlankScreenConfig {
   // AI检测参数（预留）
   aiConfidenceThreshold: number; // AI检测置信度阈值，默认0.8
   aiModelVersion: string; // AI模型版本，默认"v1.0"
+
+  // 像素算法检测参数（预留）
+  pixelSimilarityThreshold?: number; // 像素相似度阈值，默认0.85
+  pixelColorThreshold?: number; // 颜色差异阈值，默认30
+  pixelWhiteRatio?: number; // 白色像素比例阈值，默认0.9
 
   // 文案匹配检测 - 合并404文案和自定义异常文案
   errorTextKeywords: string[]; // 错误文案关键词列表（包含404文案和自定义异常文案）

@@ -108,7 +108,7 @@ router.post("/targets", async (ctx) => {
 
     console.log(`新目标添加成功: ${target.name} (${target.id})`);
 
-    ctx.body = { data: target, message: "监控目标创建成功" };
+    ctx.body = { success: true, data: target, message: "监控目标创建成功" };
   } catch (error) {
     console.error("创建监控目标失败:", error);
     ctx.status = 500;
@@ -655,7 +655,7 @@ router.post("/groups", async (ctx) => {
       description: groupData.description || "",
     });
 
-    ctx.body = { data: group, message: "分组创建成功" };
+    ctx.body = { success: true, data: group, message: "分组创建成功" };
   } catch (error) {
     if (error instanceof Error && error.message.includes("已存在")) {
       ctx.status = 400;
@@ -698,7 +698,7 @@ router.put("/groups/:id", async (ctx) => {
       return;
     }
 
-    ctx.body = { data: updatedGroup, message: "分组更新成功" };
+    ctx.body = { success: true, data: updatedGroup, message: "分组更新成功" };
   } catch (error) {
     if (error instanceof Error && error.message.includes("已存在")) {
       ctx.status = 400;
@@ -762,7 +762,7 @@ router.post("/tasks", async (ctx) => {
     }
 
     const task = await taskService.createTask(targetId);
-    ctx.body = { data: task, message: "监控任务创建成功" };
+    ctx.body = { success: true, data: task, message: "监控任务创建成功" };
   } catch (error) {
     console.error("创建监控任务失败:", error);
     ctx.status = 500;
@@ -785,6 +785,7 @@ router.post("/tasks/batch", async (ctx) => {
 
     const tasks = await taskService.createBatchTasks(targetIds);
     ctx.body = {
+      success: true,
       data: tasks,
       message: `批量创建监控任务成功: ${tasks.length} 个任务`,
     };
