@@ -15,12 +15,9 @@
     "lint:fix": "biome lint --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "clear-data": "node scripts/clear-data.js",
-    "clear-data:force": "node scripts/clear-data.js --force",
-    "clear-data:sh": "bash scripts/clear-data.sh",
-    "clear-data:sh:force": "bash scripts/clear-data.sh --force",
-    "migrate-tag-ids": "node scripts/migrate-tag-ids.js",
-    "migrate-tag-ids:force": "node scripts/migrate-tag-ids.js --force"
+    "clear": "bash scripts/clear-data.sh",
+    "clear:force": "bash scripts/clear-data.sh --force"
+
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
