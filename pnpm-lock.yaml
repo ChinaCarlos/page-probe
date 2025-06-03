@@ -7,6 +7,13 @@ settings:
 importers:
 
   .:
+    dependencies:
+      fs-extra:
+        specifier: ^11.2.0
+        version: 11.3.0
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4

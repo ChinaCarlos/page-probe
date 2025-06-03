@@ -205,7 +205,7 @@ const Settings: React.FC = () => {
 
           <Title level={4}>检测算法开关</Title>
           <Text type="secondary" className="block mb-4">
-            启用或禁用各种检测算法。建议根据监控页面的特点选择合适的检测方式。
+            启用或禁用各种检测方法。建议根据监控页面的特点选择合适的检测方式。
           </Text>
 
           <Row gutter={[16, 16]}>

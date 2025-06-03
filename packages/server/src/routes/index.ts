@@ -9,6 +9,7 @@ import {
   MonitorTarget,
   TargetGroup,
 } from "../models";
+import { PageStatus } from "../constants";
 import { alertService } from "../services/alert";
 import { monitorService } from "../services/monitor";
 import { storage } from "../services/storage";
@@ -33,9 +34,15 @@ router.get("/targets", async (ctx) => {
         const tasks = taskService.getTasksByTargetId(target.id);
         const latestTask = tasks.length > 0 ? tasks[tasks.length - 1] : null;
 
+        // 如果状态是unknown，改为checking（检测中）
+        let pageStatus = latestTask?.pageStatus || PageStatus.UNKNOWN;
+        if (pageStatus === PageStatus.UNKNOWN) {
+          pageStatus = PageStatus.CHECKING;
+        }
+
         return {
           ...target,
-          pageStatus: latestTask?.pageStatus || "unknown",
+          pageStatus,
           pageStatusReason: latestTask?.pageStatusReason || "",
           lastTaskTime: latestTask?.createdAt || null,
         };

@@ -9,14 +9,18 @@ export interface PageStatusTagProps {
   reason?: string;
   /** Tooltip 显示位置 */
   placement?:
-    | "top"
     | "topLeft"
+    | "top"
     | "topRight"
-    | "bottom"
-    | "bottomLeft"
-    | "bottomRight"
+    | "leftTop"
     | "left"
-    | "right";
+    | "leftBottom"
+    | "rightTop"
+    | "right"
+    | "rightBottom"
+    | "bottomLeft"
+    | "bottom"
+    | "bottomRight";
   /** 是否显示为简洁模式（不显示图标） */
   simple?: boolean;
 }
@@ -39,13 +43,13 @@ export const PageStatusTag: React.FC<PageStatusTagProps> = ({
       case PageStatus.ABNORMAL:
         return { color: "error", label: "异常" };
       case PageStatus.UNKNOWN:
-        return { color: "default", label: "未知" };
+        return { color: "processing", label: "待检测" };
       case PageStatus.QUEUED:
         return { color: "blue", label: "队列中" };
       case PageStatus.CHECKING:
         return { color: "processing", label: "检测中" };
       default:
-        return { color: "default", label: "未知" };
+        return { color: "processing", label: "待检测" };
     }
   };
 

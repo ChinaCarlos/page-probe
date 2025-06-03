@@ -9,6 +9,7 @@ import { Server } from "socket.io";
 import router from "./routes";
 import { monitorService } from "./services/monitor";
 import { taskService } from "./services/task";
+import { initializationService } from "./services/initialization";
 
 const app = new Koa();
 const server = createServer(app.callback());

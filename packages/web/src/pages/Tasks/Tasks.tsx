@@ -65,12 +65,18 @@ const Tasks: React.FC = () => {
   const [form] = Form.useForm();
 
   // 筛选器状态
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<{
+    search: string;
+    status?: string;
+    groupId?: string;
+    dateRange: [dayjs.Dayjs, dayjs.Dayjs] | null;
+    pageStatus?: string;
+  }>({
     search: "",
-    status: "",
-    groupId: "",
-    dateRange: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
-    pageStatus: "",
+    status: undefined,
+    groupId: undefined,
+    dateRange: null,
+    pageStatus: undefined,
   });
 
   useEffect(() => {
@@ -226,10 +232,10 @@ const Tasks: React.FC = () => {
   const clearFilters = () => {
     setFilters({
       search: "",
-      status: "",
-      groupId: "",
+      status: undefined,
+      groupId: undefined,
       dateRange: null,
-      pageStatus: "",
+      pageStatus: undefined,
     });
   };
 
@@ -470,6 +476,19 @@ const Tasks: React.FC = () => {
       key: "targetUrl",
       width: 300,
       ellipsis: true,
+      render: (url: string) => (
+        <Tooltip title={`点击打开: ${url}`}>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {url}
+          </a>
+        </Tooltip>
+      ),
     },
     {
       title: "设备类型",
@@ -493,9 +512,14 @@ const Tasks: React.FC = () => {
       key: "pageStatus",
       width: 100,
       render: (record: MonitorTask) => {
+        // 如果状态是未知，显示为"待检测"
+        const displayStatus =
+          record.pageStatus === PageStatus.UNKNOWN
+            ? PageStatus.CHECKING
+            : record.pageStatus;
         return (
           <PageStatusTag
-            status={record.pageStatus}
+            status={displayStatus}
             reason={record.pageStatusReason}
           />
         );
@@ -636,7 +660,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="任务状态"
+              placeholder="请选择任务状态进行筛选"
               value={filters.status}
               onChange={(value) => handleFilterChange("status", value)}
               allowClear
@@ -650,7 +674,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="页面状态"
+              placeholder="请选择页面状态进行筛选"
               value={filters.pageStatus}
               onChange={(value) => handleFilterChange("pageStatus", value)}
               allowClear
@@ -658,14 +682,13 @@ const Tasks: React.FC = () => {
             >
               <Option value={PageStatus.NORMAL}>正常</Option>
               <Option value={PageStatus.ABNORMAL}>异常</Option>
-              <Option value={PageStatus.UNKNOWN}>未知</Option>
-              <Option value={PageStatus.QUEUED}>队列中</Option>
               <Option value={PageStatus.CHECKING}>检测中</Option>
+              <Option value={PageStatus.QUEUED}>队列中</Option>
             </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="目标分组"
+              placeholder="请选择目标分组进行筛选"
               value={filters.groupId}
               onChange={(value) => handleFilterChange("groupId", value)}
               allowClear
@@ -682,7 +705,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <RangePicker
-              placeholder={["开始时间", "结束时间"]}
+              placeholder={["请选择开始时间", "请选择结束时间"]}
               value={filters.dateRange}
               onChange={(dates) => handleFilterChange("dateRange", dates)}
               style={{ width: "100%" }}
@@ -832,36 +855,6 @@ const Tasks: React.FC = () => {
           )}
         </Form>
       </Modal>
-
-      {/* 帮助信息 */}
-      <Card className="mt-6">
-        <div className="flex items-center gap-4">
-          <InfoCircleOutlined className="text-blue-500" />
-          <div>
-            <Text strong>任务状态说明：</Text>
-            <div className="mt-2">
-              <Space wrap>
-                <Tag color="blue">等待中</Tag>
-                <span className="text-gray-600 text-xs">
-                  任务已创建，等待执行
-                </span>
-                <Tag color="orange">执行中</Tag>
-                <span className="text-gray-600 text-xs">任务正在执行监控</span>
-                <Tag color="green">成功</Tag>
-                <span className="text-gray-600 text-xs">任务执行完成</span>
-                <Tag color="red">失败</Tag>
-                <span className="text-gray-600 text-xs">任务执行失败</span>
-              </Space>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 mt-4">
-          <div className="text-2xl mb-2">📊</div>
-          <div className="text-xs mt-1">
-            点击任务ID可复制完整ID，点击错误信息可查看详细错误内容
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };

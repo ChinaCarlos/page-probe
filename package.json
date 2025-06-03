@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "实时监控落地页核心性能指标（LCP/FID/CLS）并自动检测白屏异常的系统",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "install:all": "pnpm install",
     "dev": "concurrently \"pnpm --filter @page-probe/server dev\" \"pnpm --filter @page-probe/web dev\"",
@@ -17,7 +19,6 @@
     "check:fix": "biome check --write .",
     "clear": "bash scripts/clear-data.sh",
     "clear:force": "bash scripts/clear-data.sh --force"
-
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -26,6 +27,9 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "uuid": "^9.0.1"
   }
 }
- 

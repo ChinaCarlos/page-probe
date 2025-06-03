@@ -16,6 +16,8 @@ import {
   Upload,
   Alert,
   Divider,
+  Row,
+  Col,
 } from "antd";
 import {
   PlusOutlined,
@@ -26,6 +28,8 @@ import {
   EyeOutlined,
   UploadOutlined,
   InfoCircleOutlined,
+  SearchOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { MonitorTarget, Tag as TagType } from "../../types";
@@ -40,6 +44,7 @@ const { Option } = Select;
 const Targets: React.FC = () => {
   const navigate = useNavigate();
   const [targets, setTargets] = useState<MonitorTarget[]>([]);
+  const [filteredTargets, setFilteredTargets] = useState<MonitorTarget[]>([]);
   const [groups, setGroups] = useState<TargetGroup[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,6 +56,19 @@ const Targets: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
+
+  // 筛选状态
+  const [filters, setFilters] = useState<{
+    search: string;
+    groupId?: string;
+    tagId?: string;
+    pageStatus?: string;
+  }>({
+    search: "",
+    groupId: undefined,
+    tagId: undefined,
+    pageStatus: undefined,
+  });
 
   // 加载数据
   const loadData = async () => {
@@ -88,6 +106,69 @@ const Targets: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // 应用筛选
+  useEffect(() => {
+    let filtered = [...targets];
+
+    // 搜索筛选
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(
+        (target) =>
+          target.name.toLowerCase().includes(searchTerm) ||
+          target.url.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // 分组筛选
+    if (filters.groupId) {
+      filtered = filtered.filter(
+        (target) => target.groupId === filters.groupId
+      );
+    }
+
+    // 标签筛选
+    if (filters.tagId) {
+      filtered = filtered.filter((target) =>
+        target.tagIds?.includes(filters.tagId!)
+      );
+    }
+
+    // 页面状态筛选（排除"未知"状态）
+    if (filters.pageStatus) {
+      filtered = filtered.filter((target) => {
+        // 只显示正常和异常状态，排除未知状态
+        if (filters.pageStatus === PageStatus.NORMAL) {
+          return target.pageStatus === PageStatus.NORMAL;
+        }
+        if (filters.pageStatus === PageStatus.ABNORMAL) {
+          return target.pageStatus === PageStatus.ABNORMAL;
+        }
+        return false;
+      });
+    }
+
+    setFilteredTargets(filtered);
+  }, [targets, filters]);
+
+  // 处理筛选变化
+  const handleFilterChange = (key: string, value: any) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  // 清空筛选
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      groupId: undefined,
+      tagId: undefined,
+      pageStatus: undefined,
+    });
+  };
 
   // 处理添加目标
   const handleAdd = () => {
@@ -492,9 +573,17 @@ const Targets: React.FC = () => {
       dataIndex: "pageStatus",
       key: "pageStatus",
       width: 100,
-      render: (pageStatus: string, record: MonitorTarget) => (
-        <PageStatusTag status={pageStatus} reason={record.pageStatusReason} />
-      ),
+      render: (pageStatus: string, record: MonitorTarget) => {
+        // 如果状态是未知，显示为"待检测"
+        const displayStatus =
+          pageStatus === PageStatus.UNKNOWN ? PageStatus.CHECKING : pageStatus;
+        return (
+          <PageStatusTag
+            status={displayStatus}
+            reason={record.pageStatusReason}
+          />
+        );
+      },
     },
     {
       title: "创建时间",
@@ -591,9 +680,75 @@ const Targets: React.FC = () => {
           </div>
         </div>
 
+        {/* 筛选器 */}
+        <Card className="mb-5" size="small">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} md={6}>
+              <Input
+                placeholder="搜索目标名称或URL"
+                prefix={<SearchOutlined />}
+                value={filters.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                allowClear
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                placeholder="请选择分组进行筛选"
+                value={filters.groupId}
+                onChange={(value) => handleFilterChange("groupId", value)}
+                allowClear
+                style={{ width: "100%" }}
+              >
+                {groups.map((group) => (
+                  <Option key={group.id} value={group.id}>
+                    <AntTag color={group.color} style={{ margin: 0 }}>
+                      {group.name}
+                    </AntTag>
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                placeholder="请选择标签进行筛选"
+                value={filters.tagId}
+                onChange={(value) => handleFilterChange("tagId", value)}
+                allowClear
+                style={{ width: "100%" }}
+              >
+                {tags.map((tag) => (
+                  <Option key={tag.id} value={tag.id}>
+                    <AntTag color={tag.color} style={{ margin: 0 }}>
+                      {tag.name}
+                    </AntTag>
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                placeholder="请选择页面状态进行筛选"
+                value={filters.pageStatus}
+                onChange={(value) => handleFilterChange("pageStatus", value)}
+                allowClear
+                style={{ width: "100%" }}
+              >
+                <Option value={PageStatus.NORMAL}>正常</Option>
+                <Option value={PageStatus.ABNORMAL}>异常</Option>
+              </Select>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Button icon={<FilterOutlined />} onClick={clearFilters}>
+                清空筛选
+              </Button>
+            </Col>
+          </Row>
+        </Card>
+
         <Table
           columns={columns}
-          dataSource={targets}
+          dataSource={filteredTargets}
           rowKey="id"
           loading={loading}
           rowSelection={{
@@ -607,7 +762,8 @@ const Targets: React.FC = () => {
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个目标`,
+            showTotal: (total, range) =>
+              `第 ${range?.[0]}-${range?.[1]} 条/共 ${total} 条`,
           }}
           scroll={{ x: 1300 }}
         />
