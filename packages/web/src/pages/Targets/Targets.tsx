@@ -694,7 +694,7 @@ const Targets: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Select
-                placeholder="请选择分组进行筛选"
+                placeholder="请选择分组"
                 value={filters.groupId}
                 onChange={(value) => handleFilterChange("groupId", value)}
                 allowClear
@@ -711,7 +711,7 @@ const Targets: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Select
-                placeholder="请选择标签进行筛选"
+                placeholder="请选择标签"
                 value={filters.tagId}
                 onChange={(value) => handleFilterChange("tagId", value)}
                 allowClear
@@ -728,7 +728,7 @@ const Targets: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Select
-                placeholder="请选择页面状态进行筛选"
+                placeholder="请选择页面状态"
                 value={filters.pageStatus}
                 onChange={(value) => handleFilterChange("pageStatus", value)}
                 allowClear

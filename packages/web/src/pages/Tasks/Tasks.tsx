@@ -660,7 +660,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="请选择任务状态进行筛选"
+              placeholder="请选择任务状态"
               value={filters.status}
               onChange={(value) => handleFilterChange("status", value)}
               allowClear
@@ -674,7 +674,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="请选择页面状态进行筛选"
+              placeholder="请选择页面状态"
               value={filters.pageStatus}
               onChange={(value) => handleFilterChange("pageStatus", value)}
               allowClear
@@ -688,7 +688,7 @@ const Tasks: React.FC = () => {
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Select
-              placeholder="请选择目标分组进行筛选"
+              placeholder="请选择目标分组"
               value={filters.groupId}
               onChange={(value) => handleFilterChange("groupId", value)}
               allowClear
