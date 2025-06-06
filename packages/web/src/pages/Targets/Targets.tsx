@@ -27,11 +27,12 @@ import {
   MonitorOutlined,
   EyeOutlined,
   UploadOutlined,
+  DownloadOutlined,
   InfoCircleOutlined,
   SearchOutlined,
   FilterOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { MonitorTarget, Tag as TagType } from "../../types";
 import { TargetGroup } from "../../types/api";
 import { ImportData, ImportResult } from "../../types/import";
@@ -43,6 +44,7 @@ const { Option } = Select;
 
 const Targets: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [targets, setTargets] = useState<MonitorTarget[]>([]);
   const [filteredTargets, setFilteredTargets] = useState<MonitorTarget[]>([]);
   const [groups, setGroups] = useState<TargetGroup[]>([]);
@@ -57,17 +59,29 @@ const Targets: React.FC = () => {
   const [form] = Form.useForm();
   const [batchForm] = Form.useForm();
 
+  // 从URL参数初始化筛选状态
+  const initFiltersFromURL = () => {
+    return {
+      search: searchParams.get("search") || "",
+      groupId: searchParams.get("groupId") || undefined,
+      tagId: searchParams.get("tagId") || undefined,
+      pageStatus: searchParams.get("pageStatus") || undefined,
+    };
+  };
+
   // 筛选状态
   const [filters, setFilters] = useState<{
     search: string;
     groupId?: string;
     tagId?: string;
     pageStatus?: string;
-  }>({
-    search: "",
-    groupId: undefined,
-    tagId: undefined,
-    pageStatus: undefined,
+  }>(initFiltersFromURL());
+
+  // 分页状态
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
   });
 
   // 加载数据
@@ -152,21 +166,60 @@ const Targets: React.FC = () => {
     setFilteredTargets(filtered);
   }, [targets, filters]);
 
+  // 更新分页总数
+  useEffect(() => {
+    setPagination((prev) => ({
+      ...prev,
+      total: filteredTargets.length,
+    }));
+  }, [filteredTargets]);
+
+  // 更新URL参数
+  const updateURLParams = (newFilters: any) => {
+    const params = new URLSearchParams();
+
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "" && value !== null) {
+        params.set(key, String(value));
+      }
+    });
+
+    setSearchParams(params);
+  };
+
   // 处理筛选变化
   const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev) => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [key]: value,
-    }));
+    };
+    setFilters(newFilters);
+    updateURLParams(newFilters);
   };
 
   // 清空筛选
   const clearFilters = () => {
-    setFilters({
+    const emptyFilters = {
       search: "",
       groupId: undefined,
       tagId: undefined,
       pageStatus: undefined,
+    };
+    setFilters(emptyFilters);
+    updateURLParams(emptyFilters);
+    // 重置分页到第一页
+    setPagination((prev) => ({
+      ...prev,
+      current: 1,
+    }));
+  };
+
+  // 处理分页变化
+  const handleTableChange = (paginationConfig: any) => {
+    setPagination({
+      current: paginationConfig.current,
+      pageSize: paginationConfig.pageSize,
+      total: filteredTargets.length,
     });
   };
 
@@ -298,6 +351,81 @@ const Targets: React.FC = () => {
     batchForm.resetFields();
   };
 
+  // 导出JSON文件
+  const downloadJSON = (data: any, filename: string) => {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 批量导出选中目标
+  const handleBatchExport = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning("请选择要导出的目标");
+      return;
+    }
+
+    const selectedTargets = targets.filter((target) =>
+      selectedRowKeys.includes(target.id)
+    );
+
+    const exportData = {
+      targets: selectedTargets.map((target) => ({
+        name: target.name,
+        url: target.url,
+        deviceType: target.deviceType,
+      })),
+    };
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    downloadJSON(exportData, `monitoring-targets-selected-${timestamp}.json`);
+    message.success(`已导出 ${selectedTargets.length} 个监控目标`);
+  };
+
+  // 导出全部目标（根据当前筛选条件）
+  const handleExportAll = () => {
+    const dataToExport = filteredTargets.length > 0 ? filteredTargets : targets;
+
+    if (dataToExport.length === 0) {
+      message.warning("没有可导出的目标");
+      return;
+    }
+
+    const exportData = {
+      targets: dataToExport.map((target) => ({
+        name: target.name,
+        url: target.url,
+        deviceType: target.deviceType,
+      })),
+    };
+
+    const timestamp = new Date().toISOString().split("T")[0];
+
+    // 判断是否有筛选条件
+    const hasFilters = Object.values(filters).some(
+      (value) => value !== undefined && value !== "" && value !== null
+    );
+
+    const fileName = hasFilters
+      ? `monitoring-targets-filtered-${timestamp}.json`
+      : `monitoring-targets-all-${timestamp}.json`;
+
+    downloadJSON(exportData, fileName);
+
+    if (hasFilters) {
+      message.success(`已导出 ${dataToExport.length} 个符合筛选条件的监控目标`);
+    } else {
+      message.success(`已导出 ${dataToExport.length} 个监控目标`);
+    }
+  };
+
   // 处理文件上传
   const handleFileUpload = (file: File) => {
     const reader = new FileReader();
@@ -324,62 +452,12 @@ const Targets: React.FC = () => {
           return;
         }
 
-        // 验证分组ID和标签ID是否存在
-        let hasInvalidIds = false;
-        const errors: string[] = [];
-
-        importData.targets.forEach((target, index) => {
-          // 验证分组ID
-          if (target.groupId) {
-            const groupExists = groups.some((g) => g.id === target.groupId);
-            if (!groupExists) {
-              errors.push(
-                `目标 ${index + 1} "${target.name}" 的分组ID "${
-                  target.groupId
-                }" 不存在`
-              );
-              hasInvalidIds = true;
-            }
-          }
-
-          // 验证标签ID
-          if (target.tagIds && Array.isArray(target.tagIds)) {
-            target.tagIds.forEach((tagId) => {
-              const tagExists = tags.some((t) => t.id === tagId);
-              if (!tagExists) {
-                errors.push(
-                  `目标 ${index + 1} "${
-                    target.name
-                  }" 的标签ID "${tagId}" 不存在`
-                );
-                hasInvalidIds = true;
-              }
-            });
-          }
+        // 清理数据中的分组ID和标签ID（现在由用户在界面上选择）
+        importData.targets.forEach((target) => {
+          // 移除分组ID和标签ID，这些将由用户在界面上选择
+          delete target.groupId;
+          delete target.tagIds;
         });
-
-        if (hasInvalidIds) {
-          Modal.error({
-            title: "数据验证失败",
-            width: 600,
-            content: (
-              <div>
-                <p>发现以下错误：</p>
-                <ul style={{ maxHeight: 200, overflow: "auto" }}>
-                  {errors.map((error, index) => (
-                    <li key={index} style={{ color: "red" }}>
-                      {error}
-                    </li>
-                  ))}
-                </ul>
-                <p style={{ marginTop: 16 }}>
-                  请检查JSON文件中的分组ID和标签ID是否正确。
-                </p>
-              </div>
-            ),
-          });
-          return;
-        }
 
         // 设置到表单中（用于预览）
         batchForm.setFieldsValue({
@@ -402,13 +480,20 @@ const Targets: React.FC = () => {
     try {
       const importData: ImportData = JSON.parse(values.importData);
 
+      // 组合用户选择的分组和标签
+      const batchImportData = {
+        targets: importData.targets,
+        batchGroupId: values.groupId, // 用户选择的分组ID
+        batchTagIds: values.tagIds || [], // 用户选择的标签ID数组
+      };
+
       setLoading(true);
       const response = await fetch("/api/targets/batch-import", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(importData),
+        body: JSON.stringify(batchImportData),
       });
 
       const result = await response.json();
@@ -642,42 +727,58 @@ const Targets: React.FC = () => {
   return (
     <div className="p-6">
       <Card>
-        <div className="flex justify-between items-center mb-5">
-          <div className="flex items-center gap-2">
-            <MonitorOutlined className="text-blue-500" />
-            <Title level={4} className="m-0">
-              监控目标
-            </Title>
+        <div className="mb-5">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <MonitorOutlined className="text-blue-500" />
+              <Title level={4} className="m-0">
+                监控目标
+              </Title>
+            </div>
+            <div className="flex gap-2">
+              <Button icon={<UploadOutlined />} onClick={handleBatchImport}>
+                批量导入
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={handleExportAll}>
+                导出全部
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAdd}
+              >
+                添加目标
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            {selectedRowKeys.length > 0 && (
-              <>
-                <Button
-                  icon={<PlayCircleOutlined />}
-                  onClick={handleBatchMonitor}
-                  className="text-green-600"
-                >
-                  批量监控 ({selectedRowKeys.length})
+          {selectedRowKeys.length > 0 && (
+            <div className="flex gap-2 justify-end">
+              <Button
+                icon={<PlayCircleOutlined />}
+                onClick={handleBatchMonitor}
+                className="text-green-600"
+              >
+                批量监控 ({selectedRowKeys.length})
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleBatchExport}
+                className="text-blue-600"
+              >
+                导出选中 ({selectedRowKeys.length})
+              </Button>
+              <Popconfirm
+                title="确定要删除选中的监控目标吗？"
+                onConfirm={handleBatchDelete}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button icon={<DeleteOutlined />} danger>
+                  批量删除 ({selectedRowKeys.length})
                 </Button>
-                <Popconfirm
-                  title="确定要删除选中的监控目标吗？"
-                  onConfirm={handleBatchDelete}
-                  okText="确定"
-                  cancelText="取消"
-                >
-                  <Button icon={<DeleteOutlined />} danger>
-                    批量删除 ({selectedRowKeys.length})
-                  </Button>
-                </Popconfirm>
-              </>
-            )}
-            <Button icon={<UploadOutlined />} onClick={handleBatchImport}>
-              批量导入
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              添加目标
-            </Button>
-          </div>
+              </Popconfirm>
+            </div>
+          )}
         </div>
 
         {/* 筛选器 */}
@@ -759,11 +860,28 @@ const Targets: React.FC = () => {
             preserveSelectedRowKeys: true,
           }}
           pagination={{
-            pageSize: 10,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `第 ${range?.[0]}-${range?.[1]} 条/共 ${total} 条`,
+            pageSizeOptions: ["10", "20", "50", "100"],
+            onShowSizeChange: (current, size) => {
+              setPagination({
+                current: 1, // 改变页面大小时重置到第一页
+                pageSize: size,
+                total: filteredTargets.length,
+              });
+            },
+            onChange: (page, pageSize) => {
+              setPagination({
+                current: page,
+                pageSize: pageSize || pagination.pageSize,
+                total: filteredTargets.length,
+              });
+            },
           }}
           scroll={{ x: 1300 }}
         />
@@ -875,9 +993,7 @@ const Targets: React.FC = () => {
     {
       "name": "网站名称",
       "url": "https://example.com",
-      "deviceType": "desktop",
-      "groupId": "分组ID",
-      "tagIds": ["标签ID1", "标签ID2"]
+      "deviceType": "desktop"
     }
   ]
 }`}
@@ -899,13 +1015,11 @@ const Targets: React.FC = () => {
                     <code>deviceType</code> (可选): 设备类型，"desktop" 或
                     "mobile"，默认为 "desktop"
                   </li>
-                  <li>
-                    <code>groupId</code> (可选): 分组ID，必须是已存在的分组ID
-                  </li>
-                  <li>
-                    <code>tagIds</code> (可选): 标签ID数组，必须是已存在的标签ID
-                  </li>
                 </ul>
+                <p style={{ marginTop: "8px", color: "#1890ff" }}>
+                  <strong>注意：</strong>{" "}
+                  分组和标签请在下方选择，无需在JSON文件中设置。
+                </p>
               </div>
             </div>
           }
@@ -918,7 +1032,47 @@ const Targets: React.FC = () => {
           form={batchForm}
           layout="vertical"
           onFinish={handleBatchImportSubmit}
+          initialValues={{
+            groupId: undefined,
+            tagIds: [],
+          }}
         >
+          {/* 分组和标签选择 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="选择分组" name="groupId">
+                <Select placeholder="请选择分组（可选）" allowClear>
+                  {groups.map((group) => (
+                    <Option key={group.id} value={group.id}>
+                      <AntTag color={group.color} className="text-xs">
+                        {group.name}
+                      </AntTag>
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="选择标签" name="tagIds">
+                <Select
+                  mode="multiple"
+                  placeholder="请选择标签（可选）"
+                  allowClear
+                >
+                  {tags.map((tag) => (
+                    <Option key={tag.id} value={tag.id}>
+                      <AntTag color={tag.color} className="text-xs">
+                        {tag.name}
+                      </AntTag>
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider />
+
           <Form.Item
             label="上传JSON文件"
             extra="支持拖拽上传，文件大小限制10MB"
@@ -947,7 +1101,7 @@ const Targets: React.FC = () => {
             ]}
           >
             <Input.TextArea
-              rows={12}
+              rows={10}
               placeholder="请上传JSON文件，或在此处手动输入JSON数据..."
               style={{ fontFamily: "monospace", fontSize: "12px" }}
             />

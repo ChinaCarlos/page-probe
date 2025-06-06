@@ -5,6 +5,7 @@ import {
   AlertRule,
   ApiResponse,
   BlankScreenConfig,
+  BlankScreenDetection,
   MonitorStats,
   MonitorTarget,
   TargetGroup,
@@ -134,6 +135,43 @@ router.post("/targets/batch-import", async (ctx) => {
       return;
     }
 
+    // 获取用户选择的批量分组和标签
+    let batchGroupId = importData.batchGroupId;
+    const batchTagIds = importData.batchTagIds || [];
+
+    // 获取分组信息
+    const groups = await storage.getGroups();
+
+    // 如果用户没有选择分组，使用默认分组
+    if (!batchGroupId) {
+      const defaultGroup = groups.find((g) => g.name === "默认分组");
+      batchGroupId = defaultGroup?.id || groups[0]?.id;
+    } else {
+      // 验证批量分组ID是否存在
+      const groupExists = groups.some((g) => g.id === batchGroupId);
+      if (!groupExists) {
+        ctx.status = 400;
+        ctx.body = { success: false, error: "选择的分组ID不存在" };
+        return;
+      }
+    }
+
+    // 验证批量标签ID是否存在
+    if (batchTagIds.length > 0) {
+      const tags = await storage.getTags();
+      const invalidTagIds = batchTagIds.filter(
+        (tagId: string) => !tags.some((t) => t.id === tagId)
+      );
+      if (invalidTagIds.length > 0) {
+        ctx.status = 400;
+        ctx.body = {
+          success: false,
+          error: `选择的标签ID不存在: ${invalidTagIds.join(", ")}`,
+        };
+        return;
+      }
+    }
+
     const results = [];
     let successCount = 0;
     let failedCount = 0;
@@ -156,52 +194,14 @@ router.post("/targets/batch-import", async (ctx) => {
           continue;
         }
 
-        // 验证分组ID是否存在
-        if (targetData.groupId) {
-          const groups = await storage.getGroups();
-          const groupExists = groups.some((g) => g.id === targetData.groupId);
-          if (!groupExists) {
-            const error = `目标 "${targetData.name}" 的分组ID不存在`;
-            errors.push(error);
-            results.push({
-              target: targetData,
-              success: false,
-              error,
-            });
-            failedCount++;
-            continue;
-          }
-        }
-
-        // 验证标签ID是否存在
-        if (targetData.tagIds && Array.isArray(targetData.tagIds)) {
-          const tags = await storage.getTags();
-          const invalidTagIds = targetData.tagIds.filter(
-            (tagId: string) => !tags.some((t) => t.id === tagId)
-          );
-          if (invalidTagIds.length > 0) {
-            const error = `目标 "${
-              targetData.name
-            }" 包含无效的标签ID: ${invalidTagIds.join(", ")}`;
-            errors.push(error);
-            results.push({
-              target: targetData,
-              success: false,
-              error,
-            });
-            failedCount++;
-            continue;
-          }
-        }
-
-        // 创建监控目标
+        // 创建监控目标，使用用户选择的分组和标签
         const target = {
           id: uuidv4(),
           name: targetData.name,
           url: targetData.url,
           deviceType: targetData.deviceType || "desktop",
-          groupId: targetData.groupId,
-          tagIds: targetData.tagIds || [],
+          groupId: batchGroupId, // 使用用户选择的分组
+          tagIds: batchTagIds, // 使用用户选择的标签
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -822,6 +822,51 @@ router.get("/tasks", async (ctx) => {
     console.error("获取任务列表失败:", error);
     ctx.status = 500;
     ctx.body = { error: "获取任务列表失败" };
+  }
+});
+
+// 获取单个任务详情
+router.get("/tasks/:id", async (ctx) => {
+  try {
+    const { id } = ctx.params;
+    const tasks = taskService.getTasks();
+    const task = tasks.find((t) => t.id === id);
+
+    if (!task) {
+      ctx.status = 404;
+      ctx.body = { error: "任务不存在" };
+      return;
+    }
+
+    // 如果任务有关联的监控结果，获取完整的监控数据
+    let metricsData = null;
+    let blankScreenData = null;
+
+    if (task.resultId) {
+      try {
+        const metrics = await storage.getMetrics();
+        metricsData = metrics.find((m) => m.id === task.resultId);
+
+        const blankScreens = await storage.getBlankScreenDetections();
+        blankScreenData = blankScreens.find(
+          (bs: BlankScreenDetection) => bs.sessionId === task.sessionId
+        );
+      } catch (error) {
+        console.warn("获取关联监控数据失败:", error);
+      }
+    }
+
+    ctx.body = {
+      data: {
+        task,
+        metrics: metricsData,
+        blankScreen: blankScreenData,
+      },
+    };
+  } catch (error) {
+    console.error("获取任务详情失败:", error);
+    ctx.status = 500;
+    ctx.body = { error: "获取任务详情失败" };
   }
 });
 

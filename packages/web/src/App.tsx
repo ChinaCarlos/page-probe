@@ -13,6 +13,7 @@ import Settings from "./pages/Settings/Settings";
 import TargetDetail from "./pages/TargetDetail/TargetDetail";
 import Targets from "./pages/Targets/Targets";
 import Tasks from "./pages/Tasks/Tasks";
+import TaskDetail from "./pages/TaskDetail/TaskDetail";
 import "./styles/global.scss";
 
 const App: React.FC = () => {
@@ -26,6 +27,7 @@ const App: React.FC = () => {
           <Route path="/groups" element={<Groups />} />
           <Route path="/tags" element={<Tags />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/tasks/:id" element={<TaskDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

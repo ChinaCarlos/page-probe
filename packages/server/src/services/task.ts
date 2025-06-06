@@ -267,6 +267,9 @@ class TaskService {
       task.resultId = result.metrics.id;
       task.pageStatus = pageStatus;
       task.pageStatusReason = pageStatusReason;
+      // 保存截图信息
+      task.screenshots = result.metrics.screenshots || [];
+      task.sessionId = result.metrics.sessionId;
 
       console.log(
         `任务执行成功: ${task.targetName} (${task.id}), 耗时: ${task.duration}ms`

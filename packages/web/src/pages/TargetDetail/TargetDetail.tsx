@@ -919,16 +919,38 @@ const TargetDetail: React.FC = () => {
       )}
 
       {/* 最新截图展示 */}
-      {latestMetric &&
-        latestMetric.screenshots &&
-        latestMetric.screenshots.length > 0 && (
+      {(() => {
+        // 优先显示最新任务的截图，如果没有则显示最新metrics的截图
+        const latestTask = tasks.length > 0 ? tasks[tasks.length - 1] : null;
+        const hasLatestTaskScreenshots =
+          latestTask?.screenshots && latestTask.screenshots.length > 0;
+        const hasLatestMetricScreenshots =
+          latestMetric?.screenshots && latestMetric.screenshots.length > 0;
+
+        const screenshots = hasLatestTaskScreenshots
+          ? latestTask!.screenshots!
+          : hasLatestMetricScreenshots
+          ? latestMetric!.screenshots!
+          : [];
+
+        const timestamp = hasLatestTaskScreenshots
+          ? latestTask!.createdAt
+          : hasLatestMetricScreenshots
+          ? latestMetric!.timestamp
+          : Date.now();
+
+        const sourceLabel = hasLatestTaskScreenshots
+          ? "最新任务截图"
+          : "最新监控截图";
+
+        if (screenshots.length === 0) return null;
+
+        return (
           <Card
             title={
               <Space>
-                <span>最新监控截图</span>
-                <Tag color="blue">
-                  {new Date(latestMetric.timestamp).toLocaleString()}
-                </Tag>
+                <span>{sourceLabel}</span>
+                <Tag color="blue">{new Date(timestamp).toLocaleString()}</Tag>
               </Space>
             }
             style={{ marginBottom: 24 }}
@@ -941,65 +963,63 @@ const TargetDetail: React.FC = () => {
                   gap: 16,
                 }}
               >
-                {latestMetric.screenshots.map(
-                  (screenshot: string, index: number) => {
-                    // 从文件名中提取阶段信息
-                    // 文件名格式：{sessionId}_{stage}_{timestamp}.png
-                    const parts = screenshot.split("_");
-                    const stageKey = parts.length >= 2 ? parts[1] : "";
+                {screenshots.map((screenshot: string, index: number) => {
+                  // 从文件名中提取阶段信息
+                  // 文件名格式：{sessionId}_{stage}_{timestamp}.png
+                  const parts = screenshot.split("_");
+                  const stageKey = parts.length >= 2 ? parts[1] : "";
 
-                    // 使用预定义的截图阶段配置
-                    const stageConfig =
-                      SCREENSHOT_STAGE_CONFIG[stageKey as ScreenshotStage];
-                    const stageLabel = stageConfig?.label || "未知截图";
-                    const stageDescription = stageConfig?.description || "";
+                  // 使用预定义的截图阶段配置
+                  const stageConfig =
+                    SCREENSHOT_STAGE_CONFIG[stageKey as ScreenshotStage];
+                  const stageLabel = stageConfig?.label || "未知截图";
+                  const stageDescription = stageConfig?.description || "";
 
-                    // 添加时间戳参数避免缓存
-                    const screenshotUrl = `/api/screenshots/${screenshot}?t=${latestMetric.timestamp}`;
+                  // 添加时间戳参数避免缓存
+                  const screenshotUrl = `/api/screenshots/${screenshot}?t=${timestamp}`;
 
-                    return (
-                      <div key={screenshot} style={{ textAlign: "center" }}>
-                        <PhotoView src={screenshotUrl}>
-                          <div
-                            style={{
-                              width: "100%",
-                              height: 96,
-                              backgroundColor: "#f5f5f5",
-                              border: "1px solid #e8e8e8",
-                              borderRadius: 6,
-                              cursor: "pointer",
-                              backgroundImage: `url(${screenshotUrl})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = "#1890ff";
-                              e.currentTarget.style.boxShadow =
-                                "0 2px 8px rgba(0,0,0,0.1)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = "#e8e8e8";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            title={stageDescription}
-                          />
-                        </PhotoView>
-                        <p
+                  return (
+                    <div key={screenshot} style={{ textAlign: "center" }}>
+                      <PhotoView src={screenshotUrl}>
+                        <div
                           style={{
-                            fontSize: 12,
-                            color: "#666",
-                            marginTop: 8,
-                            lineHeight: 1.2,
+                            width: "100%",
+                            height: 96,
+                            backgroundColor: "#f5f5f5",
+                            border: "1px solid #e8e8e8",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            backgroundImage: `url(${screenshotUrl})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "#1890ff";
+                            e.currentTarget.style.boxShadow =
+                              "0 2px 8px rgba(0,0,0,0.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "#e8e8e8";
+                            e.currentTarget.style.boxShadow = "none";
                           }}
                           title={stageDescription}
-                        >
-                          {stageLabel}
-                        </p>
-                      </div>
-                    );
-                  }
-                )}
+                        />
+                      </PhotoView>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#666",
+                          marginTop: 8,
+                          lineHeight: 1.2,
+                        }}
+                        title={stageDescription}
+                      >
+                        {stageLabel}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </PhotoProvider>
 
@@ -1015,7 +1035,8 @@ const TargetDetail: React.FC = () => {
               提示：每次监控执行完成后，截图会自动更新为最新结果，旧截图会被清理
             </div>
           </Card>
-        )}
+        );
+      })()}
 
       <Card
         title="历史监控任务记录"

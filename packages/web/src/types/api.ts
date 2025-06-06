@@ -127,6 +127,8 @@ export interface MonitorTask {
   resultId?: string; // 关联的监控结果ID
   pageStatus?: PageStatus; // 页面状态：正常/异常/未知/检测中
   pageStatusReason?: string; // 页面状态异常原因
+  screenshots?: string[]; // 任务截图文件名列表
+  sessionId?: string; // 监控会话ID，用于关联截图
 }
 
 // 任务统计

@@ -34,6 +34,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DEVICE_TYPE_CONFIG, DeviceType, PageStatus } from "../../constants";
 import {
   MonitorTarget,
@@ -49,6 +50,8 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const Tasks: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tasks, setTasks] = useState<MonitorTask[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<MonitorTask[]>([]);
   const [stats, setStats] = useState<TaskStats | null>(null);
@@ -64,6 +67,25 @@ const Tasks: React.FC = () => {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [form] = Form.useForm();
 
+  // 从URL参数初始化筛选状态
+  const initFiltersFromURL = () => {
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    let dateRange: [dayjs.Dayjs, dayjs.Dayjs] | null = null;
+    if (startDate && endDate) {
+      dateRange = [dayjs(startDate), dayjs(endDate)];
+    }
+
+    return {
+      search: searchParams.get("search") || "",
+      status: searchParams.get("status") || undefined,
+      groupId: searchParams.get("groupId") || undefined,
+      dateRange,
+      pageStatus: searchParams.get("pageStatus") || undefined,
+    };
+  };
+
   // 筛选器状态
   const [filters, setFilters] = useState<{
     search: string;
@@ -71,13 +93,38 @@ const Tasks: React.FC = () => {
     groupId?: string;
     dateRange: [dayjs.Dayjs, dayjs.Dayjs] | null;
     pageStatus?: string;
-  }>({
-    search: "",
-    status: undefined,
-    groupId: undefined,
-    dateRange: null,
-    pageStatus: undefined,
+  }>(initFiltersFromURL());
+
+  // 分页状态
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
   });
+
+  // 更新URL参数
+  const updateURLParams = (newFilters: typeof filters) => {
+    const params = new URLSearchParams();
+
+    if (newFilters.search) {
+      params.set("search", newFilters.search);
+    }
+    if (newFilters.status) {
+      params.set("status", newFilters.status);
+    }
+    if (newFilters.groupId) {
+      params.set("groupId", newFilters.groupId);
+    }
+    if (newFilters.pageStatus) {
+      params.set("pageStatus", newFilters.pageStatus);
+    }
+    if (newFilters.dateRange) {
+      params.set("startDate", newFilters.dateRange[0].format("YYYY-MM-DD"));
+      params.set("endDate", newFilters.dateRange[1].format("YYYY-MM-DD"));
+    }
+
+    setSearchParams(params);
+  };
 
   useEffect(() => {
     fetchTasks();
@@ -89,6 +136,14 @@ const Tasks: React.FC = () => {
   useEffect(() => {
     applyFilters();
   }, [tasks, filters, targets]);
+
+  // 更新分页总数
+  useEffect(() => {
+    setPagination((prev) => ({
+      ...prev,
+      total: filteredTasks.length,
+    }));
+  }, [filteredTasks]);
 
   const fetchTasks = async () => {
     try {
@@ -223,20 +278,29 @@ const Tasks: React.FC = () => {
   };
 
   const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev) => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [key]: value,
-    }));
+    };
+    setFilters(newFilters);
+    updateURLParams(newFilters);
   };
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       search: "",
       status: undefined,
       groupId: undefined,
       dateRange: null,
       pageStatus: undefined,
-    });
+    };
+    setFilters(newFilters);
+    updateURLParams(newFilters);
+    // 重置分页到第一页
+    setPagination((prev) => ({
+      ...prev,
+      current: 1,
+    }));
   };
 
   const handleRefresh = async () => {
@@ -568,21 +632,18 @@ const Tasks: React.FC = () => {
     {
       title: "操作",
       key: "actions",
-      width: 120,
+      width: 180,
       fixed: "right" as const,
       render: (_: any, record: MonitorTask) => (
         <Space>
-          {record.status === TaskStatus.SUCCESS && record.resultId && (
-            <Button
-              type="link"
-              size="small"
-              onClick={() =>
-                window.open(`/targets/${record.targetId}`, "_blank")
-              }
-            >
-              查看结果
-            </Button>
-          )}
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/tasks/${record.id}`)}
+          >
+            查看详情
+          </Button>
+
           {(record.status === TaskStatus.SUCCESS ||
             record.status === TaskStatus.FAILED) && (
             <Popconfirm
@@ -766,11 +827,28 @@ const Tasks: React.FC = () => {
           columns={columns}
           rowKey="id"
           pagination={{
-            pageSize: 20,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            pageSizeOptions: ["10", "20", "50", "100"],
+            onShowSizeChange: (current, size) => {
+              setPagination({
+                current: 1, // 改变页面大小时重置到第一页
+                pageSize: size,
+                total: filteredTasks.length,
+              });
+            },
+            onChange: (page, pageSize) => {
+              setPagination({
+                current: page,
+                pageSize: pageSize || pagination.pageSize,
+                total: filteredTasks.length,
+              });
+            },
           }}
           scroll={{ x: 1500 }}
         />
