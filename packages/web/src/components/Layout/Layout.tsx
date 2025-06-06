@@ -51,9 +51,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: "任务管理",
     },
     {
-      key: "/settings",
+      key: "settings",
       icon: <SettingOutlined />,
       label: "系统设置",
+      children: [
+        {
+          key: "/settings/blank-screen",
+          label: "白屏检测设置",
+        },
+        {
+          key: "/settings/task",
+          label: "任务设置",
+        },
+      ],
     },
   ];
 

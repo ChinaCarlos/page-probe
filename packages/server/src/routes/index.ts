@@ -932,6 +932,39 @@ router.put("/blank-screen-config", async (ctx) => {
   }
 });
 
+// 任务配置路由
+router.get("/task-config", async (ctx) => {
+  try {
+    const config = await storage.getTaskConfig();
+    ctx.body = { success: true, data: config };
+  } catch (error) {
+    ctx.status = 500;
+    ctx.body = {
+      success: false,
+      error: error instanceof Error ? error.message : "获取任务配置失败",
+    };
+  }
+});
+
+router.put("/task-config", async (ctx) => {
+  try {
+    const config = ctx.request.body;
+    await storage.saveTaskConfig(config);
+
+    // 通知任务服务重新加载配置
+    const { taskService } = await import("../services/task");
+    await taskService.reloadTaskConfig();
+
+    ctx.body = { success: true, message: "任务配置保存成功" };
+  } catch (error) {
+    ctx.status = 500;
+    ctx.body = {
+      success: false,
+      error: error instanceof Error ? error.message : "保存任务配置失败",
+    };
+  }
+});
+
 // 标签管理路由
 // 获取所有标签
 router.get("/tags", async (ctx) => {

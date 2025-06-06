@@ -28,6 +28,7 @@ class Storage {
     alertRules: path.join(DATA_DIR, "alert-rules.json"),
     alertRecords: path.join(DATA_DIR, "alert-records.json"),
     tags: path.join(DATA_DIR, "tags.json"),
+    taskConfig: path.join(DATA_DIR, "task-config.json"),
   };
 
   // 通用读取方法
@@ -525,6 +526,24 @@ class Storage {
         groupName: group?.name,
       };
     });
+  }
+
+  // 任务配置管理
+  async getTaskConfig(): Promise<any> {
+    try {
+      const config = await fs.readJSON(this.dataFiles.taskConfig);
+      return config;
+    } catch (error) {
+      // 返回默认配置
+      const defaultConfig = {
+        maxConcurrentTasks: 2,
+      };
+      return defaultConfig;
+    }
+  }
+
+  async saveTaskConfig(config: any): Promise<void> {
+    await fs.writeJSON(this.dataFiles.taskConfig, config, { spaces: 2 });
   }
 }
 

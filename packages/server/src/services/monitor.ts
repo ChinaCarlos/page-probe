@@ -119,38 +119,38 @@ class MonitorService {
     }
   }
 
-  // 清理旧截图（监控时使用）
-  private async cleanupOldScreenshots(targetId: string): Promise<void> {
+  // 清理指定截图文件
+  private async cleanupScreenshots(screenshots: string[]): Promise<void> {
     try {
-      if (!fs.existsSync(SCREENSHOTS_DIR)) {
+      if (!fs.existsSync(SCREENSHOTS_DIR) || screenshots.length === 0) {
         return;
       }
 
-      const files = fs.readdirSync(SCREENSHOTS_DIR);
-
-      // 获取该目标的所有历史会话ID
-      const targetMetrics = await storage.getMetricsByTargetId(targetId);
-      const existingSessionIds = new Set(
-        targetMetrics.map((m) => m.sessionId).filter(Boolean)
-      );
-
-      // 删除属于该目标但不在当前会话中的截图
-      for (const file of files) {
-        if (file.endsWith(".png")) {
-          const sessionId = file.split("_")[0];
-          if (existingSessionIds.has(sessionId)) {
-            try {
-              fs.unlinkSync(path.join(SCREENSHOTS_DIR, file));
-              console.log(`清理旧截图: ${file}`);
-            } catch (error) {
-              console.warn(`删除截图失败: ${file}`, error);
-            }
+      let cleanedCount = 0;
+      for (const screenshot of screenshots) {
+        try {
+          const filePath = path.join(SCREENSHOTS_DIR, screenshot);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`删除截图: ${screenshot}`);
+            cleanedCount++;
           }
+        } catch (error) {
+          console.warn(`删除截图失败: ${screenshot}`, error);
         }
       }
+
+      if (cleanedCount > 0) {
+        console.log(`共删除 ${cleanedCount} 个截图文件`);
+      }
     } catch (error) {
-      console.warn("清理旧截图失败:", error);
+      console.warn("删除截图失败:", error);
     }
+  }
+
+  // 清理任务截图（公开方法）
+  async cleanupTaskScreenshots(screenshots: string[]): Promise<void> {
+    return this.cleanupScreenshots(screenshots);
   }
 
   // 立即监控单个目标
@@ -158,9 +158,6 @@ class MonitorService {
     target: MonitorTarget
   ): Promise<MonitorResult> {
     console.log(`立即开始监控: ${target.name} (${target.url})`);
-
-    // 清理该目标的旧截图
-    await this.cleanupOldScreenshots(target.id);
 
     if (!this.browser) {
       await this.initialize();

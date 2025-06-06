@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import Groups from "./pages/Groups/Groups";
 import Tags from "./pages/Tags/Tags";
 import Settings from "./pages/Settings/Settings";
+import BlankScreenSettings from "./pages/Settings/BlankScreenSettings";
+import TaskSettings from "./pages/Settings/TaskSettings";
 import TargetDetail from "./pages/TargetDetail/TargetDetail";
 import Targets from "./pages/Targets/Targets";
 import Tasks from "./pages/Tasks/Tasks";
@@ -29,6 +31,11 @@ const App: React.FC = () => {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:id" element={<TaskDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route
+            path="/settings/blank-screen"
+            element={<BlankScreenSettings />}
+          />
+          <Route path="/settings/task" element={<TaskSettings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
