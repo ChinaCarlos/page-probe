@@ -24,6 +24,9 @@ export default defineConfig({
     },
     rspack: {
       optimization: {
+        // 启用 Tree Shaking
+        usedExports: true,
+        sideEffects: false,
         splitChunks: {
           chunks: "all",
           cacheGroups: {
@@ -34,11 +37,24 @@ export default defineConfig({
               priority: 20,
               chunks: "all",
             },
-            // Antd 相关库
-            antd: {
-              test: /[\\/]node_modules[\\/](antd|@ant-design)[\\/]/,
-              name: "lib-antd",
-              priority: 20,
+            // Antd 相关库 - 细分打包
+            antdCore: {
+              test: /[\\/]node_modules[\\/]antd[\\/]es[\\/](config-provider|locale|theme)[\\/]/,
+              name: "lib-antd-core",
+              priority: 25,
+              chunks: "all",
+            },
+            antdComponents: {
+              test: /[\\/]node_modules[\\/]antd[\\/]es[\\/](?!(config-provider|locale|theme))[\\/]/,
+              name: "lib-antd-components",
+              priority: 24,
+              chunks: "all",
+              maxSize: 200000, // 限制单个chunk大小为200KB
+            },
+            antdIcons: {
+              test: /[\\/]node_modules[\\/]@ant-design[\\/]icons[\\/]/,
+              name: "lib-antd-icons",
+              priority: 23,
               chunks: "all",
             },
             // 图表库
@@ -92,6 +108,24 @@ export default defineConfig({
           name: "runtime",
         },
       },
+      resolve: {
+        // 优化模块解析
+        alias: {
+          // 确保使用 ES 模块版本的 antd
+          antd: "antd/es",
+          "@ant-design/icons": "@ant-design/icons/es",
+        },
+      },
+      // 配置 Tree Shaking 更精确的处理
+      module: {
+        rules: [
+          {
+            test: /\.js$/,
+            include: /node_modules[\\/]antd/,
+            sideEffects: false,
+          },
+        ],
+      },
     },
   },
   output: {
@@ -104,10 +138,5 @@ export default defineConfig({
     cleanDistPath: true,
     // 资源文件大小限制 (200KB)
     dataUriLimit: 200000,
-  },
-  performance: {
-    // 提高性能阈值
-    chunkSizeLimit: 500000, // 500KB
-    assetSizeLimit: 300000, // 300KB
   },
 });
