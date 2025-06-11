@@ -7,13 +7,25 @@ export default defineConfig({
   html: {
     template: "./public/index.html",
   },
+  mode: "production",
   server: {
-    port: 3000,
+    port: 4173,
+    host: "0.0.0.0",
+    strictPort: true,
+    // 预览模式的代理配置 - 可以配置为生产环境API地址
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        // 在预览时可以指向生产环境或测试环境的API
+        target: process.env.PREVIEW_API_URL || "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
       },
+    },
+    headers: {
+      // 添加一些生产环境相关的安全头
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
     },
   },
   tools: {
@@ -55,27 +67,6 @@ export default defineConfig({
               priority: 20,
               chunks: "all",
             },
-            // 图片查看器和其他UI库
-            ui: {
-              test: /[\\/]node_modules[\\/](react-photo-view|react-image-gallery|react-virtualized)[\\/]/,
-              name: "lib-ui",
-              priority: 20,
-              chunks: "all",
-            },
-            // Polyfill 和兼容性库
-            polyfill: {
-              test: /[\\/]node_modules[\\/](core-js|regenerator-runtime|@babel\/runtime)[\\/]/,
-              name: "lib-polyfill",
-              priority: 30,
-              chunks: "all",
-            },
-            // 路由相关
-            router: {
-              test: /[\\/]node_modules[\\/](history|@remix-run)[\\/]/,
-              name: "lib-router",
-              priority: 20,
-              chunks: "all",
-            },
             // 默认的vendor chunk
             vendor: {
               test: /[\\/]node_modules[\\/]/,
@@ -102,12 +93,63 @@ export default defineConfig({
     filenameHash: true,
     // 清理输出目录
     cleanDistPath: true,
-    // 资源文件大小限制 (200KB)
+    // 资源文件大小限制
     dataUriLimit: 200000,
+    // 生产环境资源路径
+    assetPrefix: process.env.PREVIEW_ASSET_PREFIX || "/",
   },
   performance: {
     // 提高性能阈值
     chunkSizeLimit: 500000, // 500KB
     assetSizeLimit: 300000, // 300KB
+    printFileSize: true,
+  },
+  // 开发工具
+  tools: {
+    ...{
+      postcss: {
+        postcssOptions: {
+          plugins: [require("tailwindcss"), require("autoprefixer")],
+        },
+      },
+      rspack: {
+        optimization: {
+          splitChunks: {
+            chunks: "all",
+            cacheGroups: {
+              react: {
+                test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/,
+                name: "lib-react",
+                priority: 20,
+                chunks: "all",
+              },
+              antd: {
+                test: /[\\/]node_modules[\\/](antd|@ant-design)[\\/]/,
+                name: "lib-antd",
+                priority: 20,
+                chunks: "all",
+              },
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: "vendor",
+                priority: 10,
+                chunks: "all",
+                minChunks: 1,
+                maxSize: 250000,
+              },
+            },
+          },
+          runtimeChunk: {
+            name: "runtime",
+          },
+        },
+      },
+    },
+    // 生产环境下禁用source map以减少文件大小
+    bundlerChain: (chain) => {
+      if (process.env.NODE_ENV === "production") {
+        chain.devtool(false);
+      }
+    },
   },
 });

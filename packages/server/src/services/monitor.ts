@@ -15,6 +15,7 @@ import {
   BlankScreenDetection,
   MonitorTarget,
   WebVitalsMetrics,
+  ResourceType,
 } from "../models";
 import { storage } from "./storage";
 
@@ -35,6 +36,7 @@ interface MonitorResult {
   metrics: WebVitalsMetrics;
   blankScreen: BlankScreenDetection | null;
   screenshots: string[];
+  resourceStats?: any; // 静态资源统计数据
 }
 
 class MonitorService {
@@ -272,6 +274,47 @@ class MonitorService {
         loadTime: null,
         domContentLoaded: null,
       };
+
+      // 静态资源监听数据
+      const resourceData: any[] = [];
+
+      // 监听网络请求
+      await page.setRequestInterception(true);
+      const requestStartTimes = new Map<string, number>();
+
+      page.on("request", (request) => {
+        requestStartTimes.set(request.url(), Date.now());
+        request.continue();
+      });
+
+      page.on("response", async (response) => {
+        const url = response.url();
+        const startTime = requestStartTimes.get(url);
+        if (!startTime) return;
+
+        const loadTime = Date.now() - startTime;
+        const headers = response.headers();
+        const contentLength = headers["content-length"];
+        const size = contentLength ? parseInt(contentLength, 10) : 0;
+
+        // 获取资源类型
+        const resourceType = response.request().resourceType();
+        const contentType = headers["content-type"] || "";
+        let type = this.getDetailedResourceType(url, contentType, resourceType);
+
+        const resourceInfo = {
+          url,
+          size,
+          loadTime,
+          type,
+          status: response.status(),
+          fromCache: response.fromCache(),
+          contentType,
+        };
+
+        resourceData.push(resourceInfo);
+        requestStartTimes.delete(url);
+      });
 
       // 在页面加载时注入Web Vitals监控脚本
       page.evaluateOnNewDocument(() => {
@@ -641,6 +684,10 @@ class MonitorService {
       metrics.loadTime = formatToFourDecimals(metrics.loadTime);
       metrics.domContentLoaded = formatToFourDecimals(metrics.domContentLoaded);
 
+      // 计算资源统计数据
+      const resourceStats = this.calculateResourceStats(resourceData);
+      console.log(`资源统计:`, resourceStats);
+
       // 检测白屏（传入页面加载状态）
       const blankScreenResult = await this.detectBlankScreen(
         page,
@@ -665,6 +712,7 @@ class MonitorService {
         metrics: metrics as WebVitalsMetrics,
         blankScreen: blankScreenResult,
         screenshots,
+        resourceStats, // 添加资源统计数据
       };
     } catch (error) {
       console.error(`监控失败: ${target.name} (${deviceType})`, error);
@@ -1219,6 +1267,244 @@ class MonitorService {
     return {
       metrics: allMetrics,
       blankScreens: allBlankScreens,
+    };
+  }
+
+  // 获取详细的资源类型
+  private getDetailedResourceType(
+    url: string,
+    contentType: string,
+    resourceType: string
+  ): ResourceType {
+    const urlLower = url.toLowerCase();
+    const contentTypeLower = contentType.toLowerCase();
+
+    // CSS样式文件
+    if (contentTypeLower.includes("text/css") || urlLower.includes(".css")) {
+      return ResourceType.STYLESHEET;
+    }
+
+    // JavaScript文件
+    if (
+      contentTypeLower.includes("javascript") ||
+      contentTypeLower.includes("application/js") ||
+      urlLower.includes(".js") ||
+      urlLower.includes(".mjs") ||
+      urlLower.includes(".ts")
+    ) {
+      return ResourceType.SCRIPT;
+    }
+
+    // 图片文件 - 细分类型
+    if (
+      contentTypeLower.includes("image/") ||
+      /\.(jpg|jpeg|png|gif|bmp|webp|svg|ico|tiff|tif)(\?|$)/.test(urlLower)
+    ) {
+      if (contentTypeLower.includes("svg") || urlLower.includes(".svg")) {
+        return ResourceType.IMAGE_SVG;
+      }
+      if (contentTypeLower.includes("gif") || urlLower.includes(".gif")) {
+        return ResourceType.IMAGE_GIF;
+      }
+      if (contentTypeLower.includes("webp") || urlLower.includes(".webp")) {
+        return ResourceType.IMAGE_WEBP;
+      }
+      if (contentTypeLower.includes("png") || urlLower.includes(".png")) {
+        return ResourceType.IMAGE_PNG;
+      }
+      if (
+        contentTypeLower.includes("jpeg") ||
+        contentTypeLower.includes("jpg") ||
+        urlLower.includes(".jpg") ||
+        urlLower.includes(".jpeg")
+      ) {
+        return ResourceType.IMAGE_JPG;
+      }
+      return ResourceType.IMAGE;
+    }
+
+    // 字体文件
+    if (
+      contentTypeLower.includes("font/") ||
+      /\.(woff2?|ttf|otf|eot)(\?|$)/.test(urlLower)
+    ) {
+      if (urlLower.includes(".woff2")) {
+        return ResourceType.FONT_WOFF2;
+      }
+      if (urlLower.includes(".woff")) {
+        return ResourceType.FONT_WOFF;
+      }
+      if (urlLower.includes(".ttf")) {
+        return ResourceType.FONT_TTF;
+      }
+      if (urlLower.includes(".otf")) {
+        return ResourceType.FONT_OTF;
+      }
+      if (urlLower.includes(".eot")) {
+        return ResourceType.FONT_EOT;
+      }
+      return ResourceType.FONT;
+    }
+
+    // 视频文件
+    if (
+      contentTypeLower.includes("video/") ||
+      /\.(mp4|webm|ogg|avi|mov|wmv|flv|m4v|3gp|mkv)(\?|$)/.test(urlLower)
+    ) {
+      if (contentTypeLower.includes("mp4") || urlLower.includes(".mp4")) {
+        return ResourceType.VIDEO_MP4;
+      }
+      if (contentTypeLower.includes("webm") || urlLower.includes(".webm")) {
+        return ResourceType.VIDEO_WEBM;
+      }
+      return ResourceType.VIDEO;
+    }
+
+    // 音频文件
+    if (
+      contentTypeLower.includes("audio/") ||
+      /\.(mp3|wav|ogg|aac|flac|m4a|wma|opus)(\?|$)/.test(urlLower)
+    ) {
+      if (contentTypeLower.includes("mp3") || urlLower.includes(".mp3")) {
+        return ResourceType.AUDIO_MP3;
+      }
+      if (contentTypeLower.includes("wav") || urlLower.includes(".wav")) {
+        return ResourceType.AUDIO_WAV;
+      }
+      if (contentTypeLower.includes("ogg") || urlLower.includes(".ogg")) {
+        return ResourceType.AUDIO_OGG;
+      }
+      return ResourceType.AUDIO;
+    }
+
+    // 文档文件
+    if (
+      contentTypeLower.includes("application/pdf") ||
+      /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf)(\?|$)/.test(urlLower)
+    ) {
+      if (urlLower.includes(".pdf")) {
+        return ResourceType.DOCUMENT_PDF;
+      }
+      if (/\.(doc|docx)(\?|$)/.test(urlLower)) {
+        return ResourceType.DOCUMENT_WORD;
+      }
+      if (/\.(xls|xlsx)(\?|$)/.test(urlLower)) {
+        return ResourceType.DOCUMENT_EXCEL;
+      }
+      if (/\.(ppt|pptx)(\?|$)/.test(urlLower)) {
+        return ResourceType.DOCUMENT_POWERPOINT;
+      }
+      return ResourceType.DOCUMENT;
+    }
+
+    // JSON数据
+    if (
+      contentTypeLower.includes("application/json") ||
+      urlLower.includes(".json")
+    ) {
+      return ResourceType.DATA_JSON;
+    }
+
+    // XML数据
+    if (
+      contentTypeLower.includes("application/xml") ||
+      contentTypeLower.includes("text/xml") ||
+      urlLower.includes(".xml")
+    ) {
+      return ResourceType.DATA_XML;
+    }
+
+    // 压缩文件
+    if (/\.(zip|rar|7z|tar|gz|bz2)(\?|$)/.test(urlLower)) {
+      return ResourceType.ARCHIVE;
+    }
+
+    // Web应用清单
+    if (
+      urlLower.includes("manifest.json") ||
+      urlLower.includes(".webmanifest")
+    ) {
+      return ResourceType.MANIFEST;
+    }
+
+    // Service Worker
+    if (
+      urlLower.includes("sw.js") ||
+      urlLower.includes("service-worker") ||
+      urlLower.includes("serviceworker")
+    ) {
+      return ResourceType.SERVICEWORKER;
+    }
+
+    // WebAssembly
+    if (
+      contentTypeLower.includes("application/wasm") ||
+      urlLower.includes(".wasm")
+    ) {
+      return ResourceType.WASM;
+    }
+
+    // 回退到原始类型
+    return (resourceType as ResourceType) || ResourceType.OTHER;
+  }
+
+  // 计算资源统计数据
+  private calculateResourceStats(resourceData: any[]): any {
+    if (!resourceData || resourceData.length === 0) {
+      return {
+        totalSize: 0,
+        totalCount: 0,
+        totalLoadTime: 0,
+        byType: {},
+        resources: [],
+      };
+    }
+
+    // 过滤掉来自缓存的资源（根据需求）
+    const nonCachedResources = resourceData.filter((r) => !r.fromCache);
+
+    // 计算总统计
+    const totalSize = nonCachedResources.reduce(
+      (sum, r) => sum + (r.size || 0),
+      0
+    );
+    const totalCount = nonCachedResources.length;
+    const totalLoadTime = nonCachedResources.reduce(
+      (sum, r) => sum + (r.loadTime || 0),
+      0
+    );
+
+    // 按类型分组统计
+    const byType: {
+      [key: string]: { count: number; size: number; loadTime: number };
+    } = {};
+
+    nonCachedResources.forEach((resource) => {
+      const type = resource.type || ResourceType.OTHER;
+      if (!byType[type]) {
+        byType[type] = { count: 0, size: 0, loadTime: 0 };
+      }
+      byType[type].count++;
+      byType[type].size += resource.size || 0;
+      byType[type].loadTime += resource.loadTime || 0;
+    });
+
+    // 格式化资源信息，移除敏感信息
+    const resources = nonCachedResources.map((r) => ({
+      url: r.url,
+      size: r.size || 0,
+      loadTime: r.loadTime || 0,
+      type: r.type || ResourceType.OTHER,
+      status: r.status,
+      fromCache: r.fromCache,
+    }));
+
+    return {
+      totalSize,
+      totalCount,
+      totalLoadTime,
+      byType,
+      resources,
     };
   }
 }

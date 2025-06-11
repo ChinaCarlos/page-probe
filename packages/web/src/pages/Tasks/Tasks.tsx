@@ -636,13 +636,13 @@ const Tasks: React.FC = () => {
       fixed: "right" as const,
       render: (_: any, record: MonitorTask) => (
         <Space>
-          <Button
-            type="link"
-            size="small"
+            <Button
+              type="link"
+              size="small"
             onClick={() => navigate(`/tasks/${record.id}`)}
-          >
+            >
             查看详情
-          </Button>
+            </Button>
 
           {(record.status === TaskStatus.SUCCESS ||
             record.status === TaskStatus.FAILED) && (

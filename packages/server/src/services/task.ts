@@ -90,6 +90,9 @@ class TaskService {
     await this.saveTasks(); // 保存任务数据
     console.log(`创建监控任务: ${task.targetName} (${task.id})`);
 
+    // 立即检查是否可以启动新任务
+    this.checkAndStartTasks().catch(console.error);
+
     return task;
   }
 
@@ -116,6 +119,9 @@ class TaskService {
     this.tasks.push(...tasks);
     await this.saveTasks(); // 保存任务数据
     console.log(`批量创建监控任务: ${tasks.length} 个任务`);
+
+    // 立即检查是否可以启动新任务
+    this.checkAndStartTasks().catch(console.error);
 
     return tasks;
   }
@@ -192,45 +198,106 @@ class TaskService {
     return true;
   }
 
+  // 删除指定目标的所有任务（用于删除监控目标时）
+  async deleteTasksByTargetId(targetId: string): Promise<number> {
+    const tasksToDelete = this.tasks.filter((t) => t.targetId === targetId);
+    if (tasksToDelete.length === 0) {
+      return 0;
+    }
+
+    let deletedCount = 0;
+    let screenshotsToCleanup: string[] = [];
+
+    // 收集所有需要删除的任务和截图
+    for (const task of tasksToDelete) {
+      // 如果任务正在运行，将其标记为取消
+      if (task.status === TaskStatus.RUNNING) {
+        this.runningTasks.delete(task.id);
+        console.log(`取消正在运行的任务: ${task.targetName} (${task.id})`);
+      }
+
+      // 收集截图信息
+      if (task.screenshots && task.screenshots.length > 0) {
+        screenshotsToCleanup.push(...task.screenshots);
+      }
+    }
+
+    // 从任务列表中移除所有相关任务
+    const beforeLength = this.tasks.length;
+    this.tasks = this.tasks.filter((t) => t.targetId !== targetId);
+    deletedCount = beforeLength - this.tasks.length;
+
+    // 保存任务数据
+    await this.saveTasks();
+
+    // 清理截图文件
+    if (screenshotsToCleanup.length > 0) {
+      try {
+        const { monitorService } = await import("./monitor");
+        await monitorService.cleanupTaskScreenshots(screenshotsToCleanup);
+        console.log(
+          `删除目标 ${targetId} 的 ${screenshotsToCleanup.length} 个截图`
+        );
+      } catch (error) {
+        console.warn(`删除截图失败:`, error);
+      }
+    }
+
+    console.log(`删除目标 ${targetId} 的 ${deletedCount} 个任务`);
+    return deletedCount;
+  }
+
+  // 检查并启动新任务
+  private async checkAndStartTasks() {
+    // 获取等待处理的任务
+    const pendingTasks = this.tasks.filter(
+      (t) => t.status === TaskStatus.PENDING
+    );
+
+    if (pendingTasks.length === 0) {
+      return;
+    }
+
+    // 计算当前可以启动的任务数量
+    const availableSlots = this.maxConcurrentTasks - this.runningTasks.size;
+    if (availableSlots <= 0) {
+      return; // 已达到最大并发数
+    }
+
+    // 选择要启动的任务
+    const tasksToStart = pendingTasks.slice(0, availableSlots);
+
+    // 并行启动所有可用的任务
+    for (const task of tasksToStart) {
+      // 将任务标记为正在运行
+      this.runningTasks.add(task.id);
+
+      // 异步执行任务（不等待完成）
+      this.processTask(task).finally(() => {
+        // 任务完成后从运行集合中移除
+        this.runningTasks.delete(task.id);
+
+        // 立即检查是否可以启动新任务（流水线执行）
+        this.checkAndStartTasks().catch(console.error);
+      });
+    }
+
+    if (tasksToStart.length > 0) {
+      console.log(
+        `🚀 启动了 ${tasksToStart.length} 个并行任务，当前运行: ${this.runningTasks.size}/${this.maxConcurrentTasks}`
+      );
+    }
+  }
+
   // 任务处理器
   private async startTaskProcessor() {
+    // 立即检查一次
+    await this.checkAndStartTasks();
+
+    // 定期检查（作为备份机制，防止遗漏）
     this.processingInterval = setInterval(async () => {
-      // 获取等待处理的任务
-      const pendingTasks = this.tasks.filter(
-        (t) => t.status === TaskStatus.PENDING
-      );
-
-      if (pendingTasks.length === 0) {
-        return;
-      }
-
-      // 计算当前可以启动的任务数量
-      const availableSlots = this.maxConcurrentTasks - this.runningTasks.size;
-      if (availableSlots <= 0) {
-        return; // 已达到最大并发数
-      }
-
-      // 选择要启动的任务
-      const tasksToStart = pendingTasks.slice(0, availableSlots);
-
-      // 并行启动所有可用的任务
-      for (const task of tasksToStart) {
-        // 将任务标记为正在运行
-        this.runningTasks.add(task.id);
-
-        // 异步执行任务（不等待完成）
-        this.processTask(task).finally(() => {
-          // 任务完成后从运行集合中移除
-          this.runningTasks.delete(task.id);
-        });
-      }
-
-      if (tasksToStart.length > 0) {
-        console.log(
-          `启动了 ${tasksToStart.length} 个并行任务，当前运行: ${this.runningTasks.size}/${this.maxConcurrentTasks}`
-        );
-      }
-    }, 1000); // 每秒检查一次
+      await this.checkAndStartTasks();
+    }, 2000); // 降低检查频率，因为主要依靠任务完成时的触发
   }
 
   // 处理单个任务
@@ -321,6 +388,8 @@ class TaskService {
       // 保存截图信息
       task.screenshots = result.metrics.screenshots || [];
       task.sessionId = result.metrics.sessionId;
+      // 保存资源统计数据
+      task.resourceStats = result.resourceStats;
 
       console.log(
         `任务执行成功: ${task.targetName} (${task.id}), 耗时: ${task.duration}ms`

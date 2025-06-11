@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "rsbuild dev",
     "build": "rsbuild build",
-    "preview": "rsbuild preview"
+    "build:analyze": "rsbuild build --analyze",
+    "preview": "node scripts/preview.js",
+    "preview:fast": "node scripts/preview.js --skip-build",
+    "preview:prod": "NODE_ENV=production node scripts/preview.js",
+    "serve": "rsbuild preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

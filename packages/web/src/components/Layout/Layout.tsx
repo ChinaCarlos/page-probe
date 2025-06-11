@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Layout as AntLayout, Menu, Button, Typography } from "antd";
 import {
   DashboardOutlined,
@@ -11,6 +11,7 @@ import {
   TagOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { preloadComponent } from "../../utils/lazyImport";
 
 const { Header, Sider, Content } = AntLayout;
 const { Title } = Typography;
@@ -19,10 +20,33 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+// 预加载映射
+const PRELOAD_MAP: Record<string, () => Promise<{ default: any }>> = {
+  "/": () => import("../../pages/Dashboard/Dashboard"),
+  "/targets": () => import("../../pages/Targets/Targets"),
+  "/groups": () => import("../../pages/Groups/Groups"),
+  "/tags": () => import("../../pages/Tags/Tags"),
+  "/tasks": () => import("../../pages/Tasks/Tasks"),
+  "/settings/blank-screen": () =>
+    import("../../pages/Settings/BlankScreenSettings"),
+  "/settings/task": () => import("../../pages/Settings/TaskSettings"),
+};
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // 预加载常用页面（在首次加载后延迟执行）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // 预加载仪表盘和监控目标页面（最常用的页面）
+      preloadComponent(() => import("../../pages/Dashboard/Dashboard"));
+      preloadComponent(() => import("../../pages/Targets/Targets"));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const menuItems = [
     {
@@ -71,6 +95,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate(key);
   };
 
+  // 鼠标悬停时预加载组件
+  const handleMenuItemHover = (key: string) => {
+    const preloadFunc = PRELOAD_MAP[key];
+    if (preloadFunc) {
+      preloadComponent(preloadFunc);
+    }
+  };
+
   return (
     <AntLayout className="min-h-screen">
       {/* 固定侧边栏 */}
@@ -92,6 +124,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           items={menuItems}
           onClick={handleMenuClick}
           className="border-r-0"
+          onSelect={({ key }) => handleMenuItemHover(key)}
+          onMouseEnter={(e) => {
+            const target = e.target as HTMLElement;
+            const menuItem = target.closest("[data-menu-id]") as HTMLElement;
+            if (menuItem) {
+              const key = menuItem.getAttribute("data-menu-id");
+              if (key) {
+                handleMenuItemHover(key);
+              }
+            }
+          }}
         />
       </Sider>
 

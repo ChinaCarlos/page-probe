@@ -5,6 +5,68 @@ import {
   PageStatus,
 } from "../constants";
 
+// 资源类型枚举
+export enum ResourceType {
+  // 样式文件
+  STYLESHEET = "stylesheet",
+
+  // 脚本文件
+  SCRIPT = "script",
+
+  // 图片文件
+  IMAGE = "image",
+  IMAGE_JPG = "image-jpg",
+  IMAGE_PNG = "image-png",
+  IMAGE_GIF = "image-gif",
+  IMAGE_WEBP = "image-webp",
+  IMAGE_SVG = "image-svg",
+
+  // 字体文件
+  FONT = "font",
+  FONT_WOFF = "font-woff",
+  FONT_WOFF2 = "font-woff2",
+  FONT_TTF = "font-ttf",
+  FONT_OTF = "font-otf",
+  FONT_EOT = "font-eot",
+
+  // 视频文件
+  VIDEO = "video",
+  VIDEO_MP4 = "video-mp4",
+  VIDEO_WEBM = "video-webm",
+
+  // 音频文件
+  AUDIO = "audio",
+  AUDIO_MP3 = "audio-mp3",
+  AUDIO_WAV = "audio-wav",
+  AUDIO_OGG = "audio-ogg",
+
+  // 文档文件
+  DOCUMENT = "document",
+  DOCUMENT_PDF = "document-pdf",
+  DOCUMENT_WORD = "document-word",
+  DOCUMENT_EXCEL = "document-excel",
+  DOCUMENT_POWERPOINT = "document-powerpoint",
+
+  // 数据文件
+  DATA_JSON = "data-json",
+  DATA_XML = "data-xml",
+
+  // 压缩文件
+  ARCHIVE = "archive",
+
+  // Web应用清单
+  MANIFEST = "manifest",
+
+  // Service Worker
+  SERVICEWORKER = "serviceworker",
+
+  // WebAssembly
+  WASM = "wasm",
+
+  // 其他
+  OTHER = "other",
+}
+
 // 目标分组
 export interface TargetGroup {
   id: string;
@@ -185,6 +247,31 @@ export enum TaskStatus {
   FAILED = "failed",
 }
 
+// 静态资源信息
+export interface ResourceInfo {
+  url: string; // 资源URL
+  size: number; // 资源大小（字节）
+  loadTime: number; // 加载时长（毫秒）
+  type: ResourceType; // 资源类型
+  status: number; // HTTP状态码
+  fromCache: boolean; // 是否来自缓存
+}
+
+// 资源统计信息
+export interface ResourceStats {
+  totalSize: number; // 总体积（字节）
+  totalCount: number; // 总数量
+  totalLoadTime: number; // 总加载时间（毫秒）
+  byType: {
+    [type: string]: {
+      count: number;
+      size: number;
+      loadTime: number;
+    };
+  };
+  resources: ResourceInfo[]; // 详细资源列表
+}
+
 // 监控任务
 export interface MonitorTask {
   id: string;
@@ -203,6 +290,7 @@ export interface MonitorTask {
   pageStatusReason?: string; // 页面状态异常原因
   screenshots?: string[]; // 任务截图文件名列表
   sessionId?: string; // 监控会话ID，用于关联截图
+  resourceStats?: ResourceStats; // 静态资源统计数据
 }
 
 // 任务统计

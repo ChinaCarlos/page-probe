@@ -50,6 +50,9 @@ router.get("/targets", async (ctx) => {
       })
     );
 
+    // 按创建时间倒序排列，最新添加的在前面
+    targetsWithStatus.sort((a, b) => b.createdAt - a.createdAt);
+
     ctx.body = { success: true, data: targetsWithStatus };
   } catch (error) {
     console.error("获取监控目标失败:", error);

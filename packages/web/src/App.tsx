@@ -6,17 +6,24 @@ import {
   Routes,
 } from "react-router-dom";
 import Layout from "./components/Layout/Layout";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import Groups from "./pages/Groups/Groups";
-import Tags from "./pages/Tags/Tags";
-import Settings from "./pages/Settings/Settings";
-import BlankScreenSettings from "./pages/Settings/BlankScreenSettings";
-import TaskSettings from "./pages/Settings/TaskSettings";
-import TargetDetail from "./pages/TargetDetail/TargetDetail";
-import Targets from "./pages/Targets/Targets";
-import Tasks from "./pages/Tasks/Tasks";
-import TaskDetail from "./pages/TaskDetail/TaskDetail";
+import { lazyImport } from "./utils/lazyImport";
 import "./styles/global.scss";
+
+// 使用懒加载的页面组件
+const Dashboard = lazyImport(() => import("./pages/Dashboard/Dashboard"));
+const Targets = lazyImport(() => import("./pages/Targets/Targets"));
+const TargetDetail = lazyImport(
+  () => import("./pages/TargetDetail/TargetDetail")
+);
+const Groups = lazyImport(() => import("./pages/Groups/Groups"));
+const Tags = lazyImport(() => import("./pages/Tags/Tags"));
+const Tasks = lazyImport(() => import("./pages/Tasks/Tasks"));
+const TaskDetail = lazyImport(() => import("./pages/TaskDetail/TaskDetail"));
+const Settings = lazyImport(() => import("./pages/Settings/Settings"));
+const BlankScreenSettings = lazyImport(
+  () => import("./pages/Settings/BlankScreenSettings")
+);
+const TaskSettings = lazyImport(() => import("./pages/Settings/TaskSettings"));
 
 const App: React.FC = () => {
   return (

@@ -128,6 +128,15 @@ class Storage {
     const filteredAlertRecords = alertRecords.filter((r) => r.targetId !== id);
     await this.writeData(this.dataFiles.alertRecords, filteredAlertRecords);
 
+    // 删除相关的任务
+    try {
+      const { taskService } = await import("./task");
+      await taskService.deleteTasksByTargetId(id);
+      console.log(`已删除目标 ${target.name} 的相关任务`);
+    } catch (error) {
+      console.warn("删除相关任务失败:", error);
+    }
+
     // 清理截图文件（异步执行，不阻塞删除操作）
     try {
       const { monitorService } = await import("./monitor");

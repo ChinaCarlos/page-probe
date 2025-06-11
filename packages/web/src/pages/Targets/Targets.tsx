@@ -101,7 +101,11 @@ const Targets: React.FC = () => {
       ]);
 
       if (targetsResult.success) {
-        setTargets(targetsResult.data);
+        // 按创建时间倒序排列，最新添加的在前面
+        const sortedTargets = targetsResult.data.sort(
+          (a: MonitorTarget, b: MonitorTarget) => b.createdAt - a.createdAt
+        );
+        setTargets(sortedTargets);
       }
       if (groupsResult.data) {
         setGroups(groupsResult.data);
@@ -583,6 +587,8 @@ const Targets: React.FC = () => {
       dataIndex: "name",
       key: "name",
       width: 150,
+      sorter: (a: MonitorTarget, b: MonitorTarget) =>
+        a.name.localeCompare(b.name),
       render: (name: string, record: MonitorTarget) => (
         <Button
           type="link"
@@ -675,6 +681,8 @@ const Targets: React.FC = () => {
       dataIndex: "createdAt",
       key: "createdAt",
       width: 180,
+      sorter: (a: MonitorTarget, b: MonitorTarget) => b.createdAt - a.createdAt,
+      defaultSortOrder: "descend" as const,
       render: (timestamp: number) => new Date(timestamp).toLocaleString(),
     },
     {
